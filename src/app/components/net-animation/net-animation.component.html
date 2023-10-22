@@ -1,9 +1,11 @@
+<div class="fixed right-0 top-0 z-10 font-bold select-none pointer-events-none">{{fpsMeter.fpsC()}}</div>
 <canvas id="canvas" class="bg-textB cursor-crosshair select-none transform-gpu" [width]="screen.sampledWindowWidthS()"
-    [height]="screen.sampledWindowHeightS()" (dblclick)="showSettings = true"></canvas>
-<div class="fixed left-0 top-0 flex h-full w-[200%] animate-parallaxLeft mix-blend-multiply">
+    [height]="screen.sampledWindowHeightS()"></canvas>
+<div
+    class="fixed left-0 top-0 flex h-full w-[200%] animate-parallaxLeft mix-blend-multiply select-none pointer-events-none">
     <div [ngStyle]="{backgroundImage:'url(assets/img/Seamless_Rainbow.png)', backgroundSize:'contain'}"
-        class="w-1/2 h-full select-none"></div>
+        class="w-1/2 h-full"></div>
     <div [ngStyle]="{backgroundImage:'url(assets/img/Seamless_Rainbow.png)', backgroundSize:'contain'}"
-        class="w-1/2 h-full select-none">
+        class="w-1/2 h-full">
     </div>
 </div>
