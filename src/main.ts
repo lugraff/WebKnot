@@ -1,7 +1,22 @@
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import { importProvidersFrom } from '@angular/core';
+import { AppComponent } from './app/app.component';
+import { BrowserModule, bootstrapApplication } from '@angular/platform-browser';
+import { Routes, provideRouter } from '@angular/router';
+import { TestBoardComponent } from './app/components/test-board.component';
 
-import { AppModule } from './app/app.module';
+export const ROUTES: Routes = [
+  {
+    path: '',
+    component: TestBoardComponent,
+  },
+  {
+    path: '**',
+    redirectTo: '',
+  },
+];
 
-
-platformBrowserDynamic().bootstrapModule(AppModule)
+bootstrapApplication(AppComponent, {
+    
+    providers:[provideRouter(ROUTES), importProvidersFrom(BrowserModule)]
+})
   .catch(err => console.error(err));

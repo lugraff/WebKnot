@@ -1,0 +1,7 @@
+{
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#333",
+    "statusBar.background": "#333"
+  },
+  "angular.enable-strict-mode-prompt": false
+}

@@ -1,12 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
 
 @Component({
-  selector: 'app-root',
+  selector: 'test-board',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, RouterModule],
-  template: '<router-outlet></router-outlet>',
+  templateUrl: './test-board.component.html',
+  imports: [CommonModule],
 })
-export class AppComponent {}
+export class TestBoardComponent {}
