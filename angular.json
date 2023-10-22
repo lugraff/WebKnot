@@ -17,7 +17,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
-            "outputPath": "dist/web-knot",
+            "outputPath": "docs/web-knot",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": [
