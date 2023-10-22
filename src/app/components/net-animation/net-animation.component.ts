@@ -73,7 +73,7 @@ export class NetAnimationComponent implements AfterViewInit {
       this.fullscreen.setFullScreen(true);
     }
     this.store.initCanvas();
-    this.store.createKnots(100);
+    this.store.createKnots(60);
   }
 
   public onTogglePlaying(): void {

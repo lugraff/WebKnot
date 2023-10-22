@@ -4,6 +4,7 @@ import { Vector2, Vector2Service } from '../services/vector2.service';
 import { BehaviorSubject } from 'rxjs';
 import { FpsMeterService } from '../services/fps-meter.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { PointerEventService } from '../services/pointer-event.service';
 
 interface Knot {
   pos: Vector2;
@@ -31,21 +32,33 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   public fpsMeter = inject(FpsMeterService);
   private ngZone = inject(NgZone);
   private destroy = inject(DestroyRef);
+  private pointer = inject(PointerEventService);
 
-  private canvas: HTMLCanvasElement | undefined = undefined;
+  private canvas: HTMLCanvasElement | undefined;
+  private ctx: CanvasRenderingContext2D | undefined;
   public processing = new BehaviorSubject<boolean>(true);
 
-  private pointerPos: Vector2 = { x: 0, y: 0 }; //TODO weg!
-  public range = 800;
+  private pointerPos: Vector2 = { x: 0, y: 0 };
+  public range = 100;
   public power = 30;
 
   constructor() {
-    super({ knots: [], connectDist: 150, minSpeed: 1, maxSpeed: 3, damping: 0.1, lineWidth: 6, isPressing: false });
+    super({ knots: [], connectDist: 130, minSpeed: 0.3, maxSpeed: 3, damping: 0.001, lineWidth: 6, isPressing: false });
+    this.pointer.pointerPosition.pipe(takeUntilDestroyed()).subscribe((event) => {
+      this.pointerPos = { x: event.position.x, y: event.position.y };
+      if (event.pressed !== undefined) {
+        this.setIsPressing(event.pressed);
+      }
+    });
+    // event.index
   }
+
   public initCanvas(): void {
     this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
     if (this.canvas) {
-      console.log(this.canvas);
+      this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
+      this.ctx.lineCap = 'round';
+      this.ctx.lineWidth = this.widthS();
     }
     this.processing
       .pipe(takeUntilDestroyed(this.destroy))
@@ -56,22 +69,8 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     if (!this.processing.value || !this.canvas) {
       return;
     }
-    this.fpsMeter.calcFPS(timestamp);
-
-    const ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
-    ctx.lineCap = 'round';
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    for (let index = 0; index < this.knotsS().length; index++) {
-      this.calcBehavior(this.knotsS()[index]);
-      this.calcDotPos(this.knotsS()[index]);
-      this.paintBall(ctx, this.knotsS()[index]);
-      this.paintLine(ctx, index);
-    }
-
-    // ctx.strokeStyle = '#ffffffff';
-    // ctx.fillStyle = '#00ff00aa';
-    // ctx.lineJoin = 'round';
-    console.log('A');
+    // this.fpsMeter.calcFPS(timestamp);
+    this.calcNextFrame();
     requestAnimationFrame((timestamp) => this.process(timestamp));
   }
 
@@ -82,6 +81,11 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private minS = this.selectSignal((state) => state.minSpeed);
   private maxS = this.selectSignal((state) => state.maxSpeed);
   private dampingS = this.selectSignal((state) => state.damping);
+  private widthS = this.selectSignal((state) => state.lineWidth);
+
+  private setIsPressing = this.updater((state, isPressing: boolean): StoreModel => {
+    return { ...state, isPressing };
+  });
 
   public createKnots = this.updater((state, amount: number): StoreModel => {
     const newKnots: Knot[] = [];
@@ -92,7 +96,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
         }),
-        speed: Math.random() * this.minSpeedS(),
+        speed: Math.random() + index * 0.05 * this.minSpeedS(),
         radius: 9,
         size: 6,
       };
@@ -100,6 +104,66 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     }
     return { ...state, knots: [...state.knots, ...newKnots] };
   });
+
+  private calcNextFrame(): void {
+    if (this.ctx) {
+      this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      for (let index = 0; index < this.knotsS().length; index++) {
+        if (this.isPressingS()) {
+          this.calcActions(this.knotsS()[index]);
+        }
+        this.calcBehavior(this.knotsS()[index]);
+        this.calcNextPos(this.knotsS()[index]);
+        this.calcBorders(this.knotsS()[index]);
+        this.paintLine(this.ctx, index);
+        this.paintBall(this.ctx, this.knotsS()[index]);
+      }
+    }
+  }
+
+  private calcActions(ball: Knot): void {
+    const distance = this.vector2.distance(ball.pos, this.pointerPos);
+    if (distance < this.range) {
+      // const dash = this.vec2Service.sub(ball.pos, this.pointerPos);
+      // ball.pos.x += dash.x * 0.1;
+      // ball.pos.y += dash.y * 0.1;
+      ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
+      ball.speed = (this.power / distance) * 10;
+    }
+  }
+
+  private calcBehavior(ball: Knot): void {
+    if (ball.speed < this.minS()) {
+      ball.speed = this.minS();
+    } else {
+      ball.speed -= this.dampingS();
+    }
+    if (ball.speed > this.maxS()) {
+      ball.speed = this.maxS();
+    }
+  }
+
+  private calcNextPos(ball: Knot): void {
+    ball.pos.x += ball.dir.x * ball.speed;
+    ball.pos.y += ball.dir.y * ball.speed;
+  }
+
+  private calcBorders(ball: Knot): void {
+    if (ball.pos.y < ball.radius) {
+      ball.pos.y = ball.radius;
+      ball.dir.y = -ball.dir.y;
+    } else if (ball.pos.y + ball.radius > window.innerHeight) {
+      ball.pos.y = window.innerHeight - ball.radius;
+      ball.dir.y = -ball.dir.y;
+    }
+    if (ball.pos.x < ball.radius) {
+      ball.pos.x = ball.radius;
+      ball.dir.x = -ball.dir.x;
+    } else if (ball.pos.x + ball.radius > window.innerWidth) {
+      ball.pos.x = window.innerWidth - ball.radius;
+      ball.dir.x = -ball.dir.x;
+    }
+  }
 
   private paintBall(ctx: CanvasRenderingContext2D, ball: Knot): void {
     ctx.fillStyle = '#ffffff99';
@@ -137,52 +201,4 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     ctx.moveTo(posSelf.x, posSelf.y);
     ctx.lineTo(this.knotsS()[index].pos.x, this.knotsS()[index].pos.y);
   }
-
-  private calcBehavior(ball: Knot): void {
-    let pushing = false;
-    if (this.isPressingS()) {
-      const distance = this.vector2.distance(ball.pos, this.pointerPos);
-      if (distance < this.range) {
-        // const dash = this.vec2Service.sub(ball.pos, this.pointerPos);
-        // ball.pos.x += dash.x * 0.1;
-        // ball.pos.y += dash.y * 0.1;
-        ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
-        ball.speed = (this.power / distance) * 10;
-        if (ball.speed > this.maxS()) {
-          ball.speed = this.maxS();
-        }
-        pushing = true;
-      }
-    }
-    if (!pushing) {
-      if (ball.speed > this.minS()) {
-        ball.speed -= this.dampingS();
-      } else {
-        ball.speed = this.minS();
-      }
-    }
-  }
-
-  private calcDotPos(ball: Knot): void {
-    ball.pos.x += ball.dir.x * ball.speed;
-    ball.pos.y += ball.dir.y * ball.speed;
-    if (ball.pos.y < ball.radius) {
-      ball.pos.y = ball.radius;
-      ball.dir.y = -ball.dir.y;
-    } else if (ball.pos.y + ball.radius > window.innerHeight) {
-      ball.pos.y = window.innerHeight - ball.radius;
-      ball.dir.y = -ball.dir.y;
-    }
-    if (ball.pos.x < ball.radius) {
-      ball.pos.x = ball.radius;
-      ball.dir.x = -ball.dir.x;
-    } else if (ball.pos.x + ball.radius > window.innerWidth) {
-      ball.pos.x = window.innerWidth - ball.radius;
-      ball.dir.x = -ball.dir.x;
-    }
-  }
-
-  // public filteredCategoriesS = computed((): Category[] => {
-  //   return this.categoriesS().filter((category) => category.isMain !== this.showDetailsCategoriesS());
-  // });
 }
