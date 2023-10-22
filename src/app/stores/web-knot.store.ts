@@ -7,6 +7,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from '../services/pointer-event.service';
 
 interface Knot {
+  id: string;
   pos: Vector2;
   dir: Vector2;
   speed: number;
@@ -91,6 +92,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
       const newKnot: Knot = {
+        id: index.toString(), //Math.floor(index * Math.random() * 10000000).toString(),
         pos: { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight },
         dir: this.vector2.normalize({
           x: (Math.random() - 0.5) * 2,
@@ -105,12 +107,21 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     return { ...state, knots: [...state.knots, ...newKnots] };
   });
 
+  public removeKnot = this.updater((state, index: number): StoreModel => {
+    const newKnots: Knot[] = [...state.knots];
+    newKnots.splice(index, 1);
+
+    return { ...state, knots: newKnots };
+  });
+
   private calcNextFrame(): void {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       for (let index = 0; index < this.knotsS().length; index++) {
         if (this.isPressingS()) {
-          this.calcActions(this.knotsS()[index]);
+          if (this.calcActions(this.knotsS()[index], index)) {
+            continue;
+          }
         }
         this.calcBehavior(this.knotsS()[index]);
         this.calcNextPos(this.knotsS()[index]);
@@ -118,18 +129,24 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
         this.paintLine(this.ctx, index);
         this.paintBall(this.ctx, this.knotsS()[index]);
       }
+      this.setIsPressing(false);
     }
   }
 
-  private calcActions(ball: Knot): void {
+  private calcActions(ball: Knot, index: number): boolean {
     const distance = this.vector2.distance(ball.pos, this.pointerPos);
     if (distance < this.range) {
+      if (distance < ball.radius) {
+        this.removeKnot(index);
+        return true;
+      }
       // const dash = this.vec2Service.sub(ball.pos, this.pointerPos);
       // ball.pos.x += dash.x * 0.1;
       // ball.pos.y += dash.y * 0.1;
       ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
       ball.speed = (this.power / distance) * 10;
     }
+    return false;
   }
 
   private calcBehavior(ball: Knot): void {

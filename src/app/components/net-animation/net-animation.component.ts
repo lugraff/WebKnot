@@ -52,16 +52,6 @@ export class NetAnimationComponent implements AfterViewInit {
   }
 
   constructor() {
-    // this.subs.push(
-    //   this.pointer.pointerPosition.subscribe((event) => {
-    //     this.pointerPos = { x: event.position.x, y: event.position.y };
-    //     if (event.pressed !== undefined) {
-    //       this.isPressing = event.pressed;
-    //     }
-    //     // event.index
-    //   }),
-    // );
-
     effect(() => {
       this.fpsMeter.fpsC();
       this.detector.detectChanges();
