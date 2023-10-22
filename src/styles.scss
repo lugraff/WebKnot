@@ -18,13 +18,13 @@
   src: url('assets/fonts/AROneSansRetina-Bold.ttf');
 }
 
-.v-scrollbar {
+.custom-v-scrollbar {
   @apply overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-tertiary scrollbar-track-bgA;
 }
-.h-scrollbar {
+.custom-h-scrollbar {
   @apply overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-tertiary scrollbar-track-bgA;
 }
-.scrollbar {
+.custom-scrollbar {
   @apply overflow-auto scrollbar-thin scrollbar-thumb-tertiary scrollbar-track-bgA;
 }
 

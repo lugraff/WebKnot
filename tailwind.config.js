@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{html,ts}"],
+  plugins: [require("tailwind-scrollbar")],
   theme: {
     fontSize: {
       s: "0.75rem",
@@ -44,6 +45,5 @@ module.exports = {
       sans: ['"Regular"', "sans-serif"],
       bold: ['"bold"', "sans-serif"],
     },
-    plugins: [require("tailwind-scrollbar")],
   },
 };
