@@ -9,6 +9,15 @@
   }
 }
 
+@font-face {
+  font-family: 'Regular';
+  src: url('assets/fonts/AROneSansRetina-Regular.ttf');
+}
+@font-face {
+  font-family: 'bold';
+  src: url('assets/fonts/AROneSansRetina-Bold.ttf');
+}
+
 // .v-scrollbar {
 //   @apply overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-tertiary scrollbar-track-bgA;
 // }
