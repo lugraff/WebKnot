@@ -2,7 +2,6 @@ import { importProvidersFrom } from '@angular/core';
 import { AppComponent } from './app/app.component';
 import { BrowserModule, bootstrapApplication } from '@angular/platform-browser';
 import { Routes, provideRouter } from '@angular/router';
-import { TestBoardComponent } from './app/components/test-board/test-board.component';
 import { NetAnimationComponent } from './app/components/net-animation/net-animation.component';
 
 export const ROUTES: Routes = [

@@ -8,7 +8,7 @@ import { RouterModule } from '@angular/router';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="overscroll-y-none custom-scrollbar w-[100dvw] h-[100dvh] bg-bgA text-subtle">
+    <div class="overscroll-y-none custom-scrollbar w-[100dvw] h-[100dvh] bg-black text-subtle">
       <router-outlet></router-outlet>
     </div>
   `,

@@ -1,7 +1,9 @@
+import { PointerEventService } from 'src/app/services/pointer-event.service';
+import { Vector2, Vector2Service } from 'src/app/services/vector2.service';
+import { ScreenService } from 'src/app/services/screen.service';
+import { BehaviorSubject, Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, Subscription } from 'rxjs';
-import { Vector2, Vector2Service } from 'src/app/services/vector2.service';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -11,9 +13,6 @@ import {
   NgZone,
   OnDestroy,
 } from '@angular/core';
-import { ScreenService } from 'src/app/services/screen.service';
-import { MouseEventService } from 'src/app/services/mouse-event.service';
-import { PointerEventService } from 'src/app/services/pointer-event.service';
 
 interface Dot {
   pos: Vector2;
@@ -34,21 +33,21 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
   private pointerPos: Vector2 = { x: 0, y: 0 };
   private subs: Subscription[] = [];
   public processing = new BehaviorSubject<boolean>(true);
-  public connectDist = 100;
-  public dotCount = 100;
-  public minSpeed = 0;
+  public connectDist = 200;
+  public dotCount = 20;
+  public minSpeed = 1;
   private maxSpeed = 50;
-  public range = 150;
+  public range = 800;
   public damping = 0.1;
-  public lineWidth = 1.5;
-  public power = 10;
+  public lineWidth = 6;
+  public power = 30;
   public showSettings = true;
   public isPressing = false;
-  public showDots = false;
+  public showDots = true;
   public style = 'net';
   public styles: string[] = ['none', 'net', 'kraken', 'flower', 'rects'];
 
-  public autoFps = true;
+  public autoFps = false;
   public fps = 0;
   private fpsStack: number[] = [];
   private lastDelta = 0;
@@ -67,6 +66,10 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
     } else if (event.code === 'KeyS') {
       this.showSettings = !this.showSettings;
     }
+  }
+  @HostListener('contextmenu', ['$event'])
+  onRightClick(event: MouseEvent) {
+    event.preventDefault();
   }
 
   constructor(
@@ -122,8 +125,8 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
         }),
-        speed: Math.random() * this.minSpeed * 10,
-        radius: Math.random() * 6 + 1,
+        speed: Math.random() * this.minSpeed,
+        radius: 9, //Math.random() * 6 + 1,
       };
       this.dots.push(newDot);
     }
@@ -202,7 +205,6 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
     ctx.lineWidth = this.lineWidth;
     ctx.lineCap = 'round';
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    // ctx.
     for (let index = 0; index < this.dots.length; index++) {
       this.calcBehavior(this.dots[index]);
       this.calcDotPos(this.dots[index]);
@@ -264,7 +266,7 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
   }
 
   private paintBall(ctx: CanvasRenderingContext2D, ball: Dot): void {
-    ctx.fillStyle = '#00ffffaa';
+    ctx.fillStyle = '#ffffff99';
     const circle = new Path2D();
     circle.arc(ball.pos.x, ball.pos.y, ball.radius, 0, 2 * Math.PI);
     ctx.fill(circle);
@@ -281,7 +283,7 @@ export class NetAnimationComponent implements AfterViewInit, OnDestroy {
         ctx.beginPath();
         ctx.strokeStyle = `rgba(
             ${distance * 4},
-            255,
+            ${distance * 4},
             ${distance * 4},
             ${(this.connectDist - distance) / this.connectDist})`;
         if (this.style === this.styles[1]) {

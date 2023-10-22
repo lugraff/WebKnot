@@ -35,9 +35,14 @@ module.exports = {
           "0%": { transform: "scale(0)" },
           "100%": { transform: "scale(1)" },
         },
+        parallaxLeft: {
+          "0%": { transform: "translateX(0%)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
       },
       animation: {
-        fadeIn: "fadeIn 300ms 1",
+        parallaxLeft: "parallaxLeft 9s linear infinite",
+        fadeIn: "fadeIn 300ms linear 1",
         zoomIn: "zoomIn 300ms ease 1",
       },
     },
