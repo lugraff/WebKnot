@@ -6,13 +6,17 @@ import { FpsMeterService } from '../services/fps-meter.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from '../services/pointer-event.service';
 
+interface Lines {
+  target: Vector2;
+  distance: number;
+}
 interface Knot {
   id: string;
   pos: Vector2;
   dir: Vector2;
   speed: number;
   radius: number;
-  size: number;
+  lines: Lines[];
 }
 
 interface StoreModel {
@@ -40,11 +44,12 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   public processing = new BehaviorSubject<boolean>(true);
 
   private pointerPos: Vector2 = { x: 0, y: 0 };
-  public range = 100;
+  public range = 120;
   public power = 30;
+  public radius = 32;
 
   constructor() {
-    super({ knots: [], connectDist: 130, minSpeed: 0.3, maxSpeed: 3, damping: 0.001, lineWidth: 6, isPressing: false });
+    super({ knots: [], connectDist: 120, minSpeed: 0.3, maxSpeed: 3, damping: 0.001, lineWidth: 5, isPressing: false });
     this.pointer.pointerPosition.pipe(takeUntilDestroyed()).subscribe((event) => {
       this.pointerPos = { x: event.position.x, y: event.position.y };
       if (event.pressed !== undefined) {
@@ -99,8 +104,8 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: Math.random() + index * 0.05 * this.minSpeedS(),
-        radius: 9,
-        size: 6,
+        radius: 0,
+        lines: [],
       };
       newKnots.push(newKnot);
     }
@@ -126,7 +131,8 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
         this.calcBehavior(this.knotsS()[index]);
         this.calcNextPos(this.knotsS()[index]);
         this.calcBorders(this.knotsS()[index]);
-        this.paintLine(this.ctx, index);
+        this.calcConnections(index);
+        this.paintLine(this.ctx, this.knotsS()[index]);
         this.paintBall(this.ctx, this.knotsS()[index]);
       }
       this.setIsPressing(false);
@@ -136,13 +142,11 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private calcActions(ball: Knot, index: number): boolean {
     const distance = this.vector2.distance(ball.pos, this.pointerPos);
     if (distance < this.range) {
-      if (distance < ball.radius) {
+      console.log(ball.radius);
+      if (distance < ball.radius && ball.radius >= this.radius - 13) {
         this.removeKnot(index);
         return true;
       }
-      // const dash = this.vec2Service.sub(ball.pos, this.pointerPos);
-      // ball.pos.x += dash.x * 0.1;
-      // ball.pos.y += dash.y * 0.1;
       ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
       ball.speed = (this.power / distance) * 10;
     }
@@ -165,6 +169,28 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     ball.pos.y += ball.dir.y * ball.speed;
   }
 
+  private calcConnections(ballIndex: number): void {
+    const ball = this.knotsS()[ballIndex];
+    const lines: Lines[] = [];
+    let distanceTotal = 0;
+    for (let index = ballIndex; index < this.knotsS().length; index++) {
+      const target: Vector2 = this.knotsS()[index].pos;
+      const distance = Math.sqrt(
+        (ball.pos.x - target.x) * (ball.pos.x - target.x) + (ball.pos.y - target.y) * (ball.pos.y - target.y),
+      );
+      if (distance < this.connectDistS()) {
+        lines.push({ target, distance });
+        distanceTotal += this.connectDistS() - distance;
+      }
+    }
+    let radius = Math.round(this.radius * 10 - distanceTotal) * 0.1;
+    if (radius < this.widthS()) {
+      radius = this.widthS();
+    }
+    ball.radius = radius;
+    ball.lines = lines;
+  }
+
   private calcBorders(ball: Knot): void {
     if (ball.pos.y < ball.radius) {
       ball.pos.y = ball.radius;
@@ -183,39 +209,23 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   }
 
   private paintBall(ctx: CanvasRenderingContext2D, ball: Knot): void {
-    ctx.fillStyle = '#ffffff99';
+    ctx.fillStyle = '#aaaaaa';
     const circle = new Path2D();
     circle.arc(ball.pos.x, ball.pos.y, ball.radius, 0, 2 * Math.PI);
     ctx.fill(circle);
   }
 
-  private paintLine(ctx: CanvasRenderingContext2D, ballIndex: number): void {
-    const posSelf: Vector2 = this.knotsS()[ballIndex].pos;
-    for (let index = ballIndex; index < this.knotsS().length; index++) {
-      const posOther: Vector2 = this.knotsS()[index].pos;
-      const distance = Math.sqrt(
-        (posSelf.x - posOther.x) * (posSelf.x - posOther.x) + (posSelf.y - posOther.y) * (posSelf.y - posOther.y),
-      );
-      if (distance < this.connectDistS()) {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(
-            ${distance * 4},
-            ${distance * 4},
-            ${distance * 4},
-            ${(this.connectDistS() - distance) / this.connectDistS()})`;
-        this.net(ctx, posSelf, index);
-        // ctx.fill();
-        ctx.stroke();
-        // ctx.save();
-        // ctx.scale(-1, 1);
-        // ctx.restore();
-        // ctx.stroke();
-      }
+  private paintLine(ctx: CanvasRenderingContext2D, ball: Knot): void {
+    for (const line of ball.lines) {
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(
+        ${line.distance * 4},
+        ${line.distance * 4},
+        ${line.distance * 4},
+        ${(this.connectDistS() - line.distance) / this.connectDistS()})`;
+      ctx.moveTo(ball.pos.x, ball.pos.y);
+      ctx.lineTo(line.target.x, line.target.y);
+      ctx.stroke();
     }
-  }
-
-  private net(ctx: CanvasRenderingContext2D, posSelf: Vector2, index: number): void {
-    ctx.moveTo(posSelf.x, posSelf.y);
-    ctx.lineTo(this.knotsS()[index].pos.x, this.knotsS()[index].pos.y);
   }
 }

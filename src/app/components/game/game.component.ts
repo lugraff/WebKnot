@@ -52,7 +52,7 @@ export class GameComponent implements AfterViewInit {
       this.fullscreen.setFullScreen(true);
     }
     this.store.initCanvas();
-    this.store.createKnots(20);
+    this.store.createKnots(30);
   }
 
   public onTogglePlaying(): void {
