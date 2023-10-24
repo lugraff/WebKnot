@@ -54,13 +54,13 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private pointerPos: Vector2 = { x: 0, y: 0 };
   public range = 120;
   public power = 30;
-  public radius = 24;
+  public radius = 32;
 
   constructor() {
     super({
       knots: [],
       particles: [],
-      connectDist: 120,
+      connectDist: 160,
       minSpeed: 0.3,
       maxSpeed: 3,
       damping: 0.005,
