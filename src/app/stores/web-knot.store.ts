@@ -160,7 +160,8 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private calcActions(ball: Knot, index: number): boolean {
     const distance = this.vector2.distance(ball.pos, this.pointerPos);
     if (distance < this.range) {
-      if (distance < ball.radius && ball.radius >= this.radius - 13) {
+      console.log(ball.radius, this.radius - 16);
+      if (distance < ball.radius && ball.radius >= this.radius - 16) {
         this.removeKnot(index);
         this.createParticles(ball.pos); //TODO sehen was passiert wenn da geclont wird...
         return true;
@@ -271,7 +272,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
       for (const particle of this.particlesS()) {
         particle.pos.x += particle.dir.x * particle.speed; // * (particle.lifetime * 10);
         particle.pos.y += particle.dir.y * particle.speed; // * (particle.lifetime * 10);
-        particle.radius -= 0.01;
+        particle.radius -= 0.03;
         particle.lifetime -= 1;
         if (particle.lifetime < 0) {
           destroy = true;
