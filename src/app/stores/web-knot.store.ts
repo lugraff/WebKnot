@@ -6,6 +6,13 @@ import { FpsMeterService } from '../services/fps-meter.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from '../services/pointer-event.service';
 
+interface Particle {
+  pos: Vector2;
+  dir: Vector2;
+  speed: number;
+  radius: number;
+  lifetime: number;
+}
 interface Lines {
   target: Vector2;
   distance: number;
@@ -21,6 +28,7 @@ interface Knot {
 
 interface StoreModel {
   knots: Knot[];
+  particles: Particle[];
   connectDist: number;
   minSpeed: number;
   maxSpeed: number;
@@ -46,10 +54,19 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private pointerPos: Vector2 = { x: 0, y: 0 };
   public range = 120;
   public power = 30;
-  public radius = 32;
+  public radius = 24;
 
   constructor() {
-    super({ knots: [], connectDist: 120, minSpeed: 0.3, maxSpeed: 3, damping: 0.001, lineWidth: 5, isPressing: false });
+    super({
+      knots: [],
+      particles: [],
+      connectDist: 120,
+      minSpeed: 0.3,
+      maxSpeed: 3,
+      damping: 0.005,
+      lineWidth: 5,
+      isPressing: false,
+    });
     this.pointer.pointerPosition.pipe(takeUntilDestroyed()).subscribe((event) => {
       this.pointerPos = { x: event.position.x, y: event.position.y };
       if (event.pressed !== undefined) {
@@ -81,6 +98,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   }
 
   private knotsS = this.selectSignal((state) => state.knots);
+  private particlesS = this.selectSignal((state) => state.particles);
   private minSpeedS = this.selectSignal((state) => state.minSpeed);
   private connectDistS = this.selectSignal((state) => state.connectDist);
   private isPressingS = this.selectSignal((state) => state.isPressing);
@@ -115,13 +133,13 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   public removeKnot = this.updater((state, index: number): StoreModel => {
     const newKnots: Knot[] = [...state.knots];
     newKnots.splice(index, 1);
-
     return { ...state, knots: newKnots };
   });
 
   private calcNextFrame(): void {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      this.calcNextParticle();
       for (let index = 0; index < this.knotsS().length; index++) {
         if (this.isPressingS()) {
           if (this.calcActions(this.knotsS()[index], index)) {
@@ -142,9 +160,9 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private calcActions(ball: Knot, index: number): boolean {
     const distance = this.vector2.distance(ball.pos, this.pointerPos);
     if (distance < this.range) {
-      console.log(ball.radius);
       if (distance < ball.radius && ball.radius >= this.radius - 13) {
         this.removeKnot(index);
+        this.createParticles(ball.pos); //TODO sehen was passiert wenn da geclont wird...
         return true;
       }
       ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
@@ -228,4 +246,54 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
       ctx.stroke();
     }
   }
+
+  public createParticles = this.updater((state, position: Vector2): StoreModel => {
+    const newParticles: Particle[] = [];
+    for (let index = 0; index < 96; index++) {
+      const newParticle: Particle = {
+        pos: { x: position.x + (Math.random() - 0.5) * 12, y: position.y + (Math.random() - 0.5) * 12 },
+        dir: this.vector2.normalize({
+          x: (Math.random() - 0.5) * 2,
+          y: (Math.random() - 0.5) * 2,
+        }),
+        speed: 3 + index * 0.001 + Math.random() * 3,
+        radius: 3,
+        lifetime: 60,
+      };
+      newParticles.push(newParticle);
+    }
+    return { ...state, particles: [...state.particles, ...newParticles] };
+  });
+
+  private calcNextParticle(): void {
+    if (this.ctx) {
+      let destroy = false;
+      for (const particle of this.particlesS()) {
+        particle.pos.x += particle.dir.x * particle.speed; // * (particle.lifetime * 10);
+        particle.pos.y += particle.dir.y * particle.speed; // * (particle.lifetime * 10);
+        particle.radius -= 0.01;
+        particle.lifetime -= 1;
+        if (particle.lifetime < 0) {
+          destroy = true;
+        }
+        this.paintParticle(this.ctx, particle);
+      }
+      if (destroy) {
+        this.removeParticle(100);
+      }
+    }
+  }
+
+  private paintParticle(ctx: CanvasRenderingContext2D, particle: Particle): void {
+    ctx.fillStyle = `rgba(256,256,256,${(1 / 60) * particle.lifetime})`;
+    const circle = new Path2D();
+    circle.arc(particle.pos.x, particle.pos.y, particle.radius, 0, 2 * Math.PI);
+    ctx.fill(circle);
+  }
+
+  public removeParticle = this.updater((state, amount: number): StoreModel => {
+    const newParticles: Particle[] = [...state.particles];
+    newParticles.splice(0, amount);
+    return { ...state, particles: newParticles };
+  });
 }

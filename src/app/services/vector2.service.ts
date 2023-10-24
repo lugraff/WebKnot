@@ -34,6 +34,13 @@ export class Vector2Service {
     };
   }
 
+  public invSub(vector2A: Vector2, vector2B: Vector2): Vector2 {
+    return {
+      x: -(vector2A.x - vector2B.x),
+      y: -(vector2A.y - vector2B.y),
+    };
+  }
+
   public multiply(vector2: Vector2, multi: number): Vector2 {
     return {
       x: vector2.x * multi,
