@@ -53,16 +53,16 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
 
   private pointerPos: Vector2 = { x: 0, y: 0 };
   public range = 120;
-  public power = 30;
+  public power = 64;
   public radius = 32;
 
   constructor() {
     super({
       knots: [],
       particles: [],
-      connectDist: 160,
+      connectDist: 140,
       minSpeed: 0.3,
-      maxSpeed: 3,
+      maxSpeed: 5,
       damping: 0.005,
       lineWidth: 5,
       isPressing: false,
@@ -146,13 +146,14 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
             continue;
           }
         }
+        this.calcConnectionMagnetic(this.knotsS()[index]);
         this.calcBehavior(this.knotsS()[index]);
         this.calcNextPos(this.knotsS()[index]);
         this.calcBorders(this.knotsS()[index]);
         this.calcConnections(index);
         this.paintLine(this.ctx, this.knotsS()[index]);
-        // this.paintBall(this.ctx, this.knotsS()[index]);
-        this.paintSquare(this.ctx, this.knotsS()[index]);
+        this.paintBall(this.ctx, this.knotsS()[index]);
+        // this.paintSquare(this.ctx, this.knotsS()[index]);
       }
       this.setIsPressing(false);
     }
@@ -189,17 +190,14 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     ball.pos.y += ball.dir.y * ball.speed;
   }
 
-  private calcConnections(ballIndex: number): void {
-    const knot = this.knotsS()[ballIndex];
+  private calcConnections(knotIndex: number): void {
+    const knot = this.knotsS()[knotIndex];
     const lines: Lines[] = [];
     let distanceTotal = 0;
-    for (let index = ballIndex; index < this.knotsS().length; index++) {
+    for (let index = knotIndex; index < this.knotsS().length; index++) {
       const target: Vector2 = this.knotsS()[index].pos;
       const distance = this.vector2.distance(knot.pos, target);
       if (distance < this.connectDistS()) {
-        const connectionDrift = this.vector2.sub(knot.pos, target);
-        knot.dir.x -= connectionDrift.x * 0.0001;
-        knot.dir.y -= connectionDrift.y * 0.0001;
         lines.push({ target, distance });
         distanceTotal += this.connectDistS() - distance;
       }
@@ -212,12 +210,15 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     knot.lines = lines;
   }
 
-  // private calcConnectionDrift(knot: Knot): void {
-  //   for (const line of knot.lines) {
-  //     this.vector2.sub(knot.pos,knot.)
-  //     knot.pos.x
-  //   }
-  // }
+  private calcConnectionMagnetic(knot: Knot): void {
+    for (const line of knot.lines) {
+      const magnetic = this.vector2.sub(knot.pos, line.target);
+      // knot.dir.x -= magnetic.x * (this.connectDistS() - this.radius) * 0.00001;
+      // knot.dir.y -= magnetic.y * (this.connectDistS() - this.radius) * 0.00001;
+      knot.dir.x -= magnetic.x * 0.00008;
+      knot.dir.y -= magnetic.y * 0.00008;
+    }
+  }
 
   private calcBorders(knot: Knot): void {
     if (knot.pos.y < knot.radius) {
