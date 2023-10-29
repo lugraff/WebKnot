@@ -151,7 +151,8 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
         this.calcBorders(this.knotsS()[index]);
         this.calcConnections(index);
         this.paintLine(this.ctx, this.knotsS()[index]);
-        this.paintBall(this.ctx, this.knotsS()[index]);
+        // this.paintBall(this.ctx, this.knotsS()[index]);
+        this.paintSquare(this.ctx, this.knotsS()[index]);
       }
       this.setIsPressing(false);
     }
@@ -189,15 +190,16 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   }
 
   private calcConnections(ballIndex: number): void {
-    const ball = this.knotsS()[ballIndex];
+    const knot = this.knotsS()[ballIndex];
     const lines: Lines[] = [];
     let distanceTotal = 0;
     for (let index = ballIndex; index < this.knotsS().length; index++) {
       const target: Vector2 = this.knotsS()[index].pos;
-      const distance = Math.sqrt(
-        (ball.pos.x - target.x) * (ball.pos.x - target.x) + (ball.pos.y - target.y) * (ball.pos.y - target.y),
-      );
+      const distance = this.vector2.distance(knot.pos, target);
       if (distance < this.connectDistS()) {
+        const connectionDrift = this.vector2.sub(knot.pos, target);
+        knot.dir.x -= connectionDrift.x * 0.0001;
+        knot.dir.y -= connectionDrift.y * 0.0001;
         lines.push({ target, distance });
         distanceTotal += this.connectDistS() - distance;
       }
@@ -206,33 +208,54 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     if (radius < this.widthS()) {
       radius = this.widthS();
     }
-    ball.radius = radius;
-    ball.lines = lines;
+    knot.radius = radius;
+    knot.lines = lines;
   }
 
-  private calcBorders(ball: Knot): void {
-    if (ball.pos.y < ball.radius) {
-      ball.pos.y = ball.radius;
-      ball.dir.y = -ball.dir.y;
-    } else if (ball.pos.y + ball.radius > window.innerHeight) {
-      ball.pos.y = window.innerHeight - ball.radius;
-      ball.dir.y = -ball.dir.y;
+  // private calcConnectionDrift(knot: Knot): void {
+  //   for (const line of knot.lines) {
+  //     this.vector2.sub(knot.pos,knot.)
+  //     knot.pos.x
+  //   }
+  // }
+
+  private calcBorders(knot: Knot): void {
+    if (knot.pos.y < knot.radius) {
+      knot.pos.y = knot.radius;
+      knot.dir.y = -knot.dir.y;
+    } else if (knot.pos.y + knot.radius > window.innerHeight) {
+      knot.pos.y = window.innerHeight - knot.radius;
+      knot.dir.y = -knot.dir.y;
     }
-    if (ball.pos.x < ball.radius) {
-      ball.pos.x = ball.radius;
-      ball.dir.x = -ball.dir.x;
-    } else if (ball.pos.x + ball.radius > window.innerWidth) {
-      ball.pos.x = window.innerWidth - ball.radius;
-      ball.dir.x = -ball.dir.x;
+    if (knot.pos.x < knot.radius) {
+      knot.pos.x = knot.radius;
+      knot.dir.x = -knot.dir.x;
+    } else if (knot.pos.x + knot.radius > window.innerWidth) {
+      knot.pos.x = window.innerWidth - knot.radius;
+      knot.dir.x = -knot.dir.x;
     }
   }
 
-  private paintBall(ctx: CanvasRenderingContext2D, ball: Knot): void {
+  private paintBall(ctx: CanvasRenderingContext2D, knot: Knot): void {
     ctx.fillStyle = '#aaaaaa';
     const circle = new Path2D();
-    circle.arc(ball.pos.x, ball.pos.y, ball.radius, 0, 2 * Math.PI);
+    circle.arc(knot.pos.x, knot.pos.y, knot.radius, 0, 2 * Math.PI);
     ctx.fill(circle);
   }
+
+  private paintSquare(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    ctx.fillStyle = '#aaaaaa';
+    const path2D = new Path2D();
+    path2D.roundRect(knot.pos.x - knot.radius * 0.5, knot.pos.y - knot.radius * 0.5, knot.radius, knot.radius, Math.PI);
+    ctx.fill(path2D);
+  }
+
+  // private paintTest(ctx: CanvasRenderingContext2D, ball: Knot): void {
+  //   ctx.fillStyle = '#aaaaaa';
+  //   const path2D = new Path2D();
+  //   path2D.ellipse(ball.pos.x - ball.radius * 0.5, ball.pos.y - ball.radius * 0.5, ball.radius, ball.radius);
+  //   ctx.fill(path2D);
+  // }
 
   private paintLine(ctx: CanvasRenderingContext2D, ball: Knot): void {
     for (const line of ball.lines) {
