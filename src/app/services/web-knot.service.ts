@@ -1,10 +1,9 @@
-import { ComponentStore } from '@ngrx/component-store';
 import { DestroyRef, Injectable, NgZone, inject } from '@angular/core';
-import { Vector2, Vector2Service } from '../services/vector2.service';
+import { Vector2, Vector2Service } from './vector2.service';
 import { BehaviorSubject } from 'rxjs';
-import { FpsMeterService } from '../services/fps-meter.service';
+import { FpsMeterService } from './fps-meter.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { PointerEventService } from '../services/pointer-event.service';
+import { PointerEventService } from './pointer-event.service';
 
 interface Particle {
   pos: Vector2;
@@ -18,7 +17,6 @@ interface Lines {
   distance: number;
 }
 interface Knot {
-  id: string;
   pos: Vector2;
   dir: Vector2;
   speed: number;
@@ -26,21 +24,10 @@ interface Knot {
   lines: Lines[];
 }
 
-interface StoreModel {
-  knots: Knot[];
-  particles: Particle[];
-  connectDist: number;
-  minSpeed: number;
-  maxSpeed: number;
-  damping: number;
-  lineWidth: number;
-  isPressing: boolean;
-}
-
 @Injectable({
   providedIn: 'root',
 })
-export class WebKnotStore extends ComponentStore<StoreModel> {
+export class WebKnotService {
   private vector2 = inject(Vector2Service);
   public fpsMeter = inject(FpsMeterService);
   private ngZone = inject(NgZone);
@@ -56,21 +43,20 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   public power = 64;
   public radius = 32;
 
+  private knots: Knot[] = [];
+  private particles: Particle[] = [];
+  private connectDist = 140;
+  private minSpeed = 0.3;
+  private maxSpeed = 5;
+  private damping = 0.005;
+  private lineWidth = 5;
+  private isPressing = false;
+
   constructor() {
-    super({
-      knots: [],
-      particles: [],
-      connectDist: 140,
-      minSpeed: 0.3,
-      maxSpeed: 5,
-      damping: 0.005,
-      lineWidth: 5,
-      isPressing: false,
-    });
     this.pointer.pointerPosition.pipe(takeUntilDestroyed()).subscribe((event) => {
       this.pointerPos = { x: event.position.x, y: event.position.y };
       if (event.pressed !== undefined) {
-        this.setIsPressing(event.pressed);
+        this.isPressing = event.pressed;
       }
     });
     // event.index
@@ -81,7 +67,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     if (this.canvas) {
       this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
       this.ctx.lineCap = 'round';
-      this.ctx.lineWidth = this.widthS();
+      this.ctx.lineWidth = this.lineWidth;
     }
     this.processing
       .pipe(takeUntilDestroyed(this.destroy))
@@ -97,65 +83,48 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     requestAnimationFrame((timestamp) => this.process(timestamp));
   }
 
-  private knotsS = this.selectSignal((state) => state.knots);
-  private particlesS = this.selectSignal((state) => state.particles);
-  private minSpeedS = this.selectSignal((state) => state.minSpeed);
-  private connectDistS = this.selectSignal((state) => state.connectDist);
-  private isPressingS = this.selectSignal((state) => state.isPressing);
-  private minS = this.selectSignal((state) => state.minSpeed);
-  private maxS = this.selectSignal((state) => state.maxSpeed);
-  private dampingS = this.selectSignal((state) => state.damping);
-  private widthS = this.selectSignal((state) => state.lineWidth);
-
-  private setIsPressing = this.updater((state, isPressing: boolean): StoreModel => {
-    return { ...state, isPressing };
-  });
-
-  public createKnots = this.updater((state, amount: number): StoreModel => {
+  public createKnots(amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
       const newKnot: Knot = {
-        id: index.toString(), //Math.floor(index * Math.random() * 10000000).toString(),
         pos: { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight },
         dir: this.vector2.normalize({
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
         }),
-        speed: Math.random() + index * 0.05 * this.minSpeedS(),
+        speed: Math.random() + index * 0.05 * this.minSpeed,
         radius: 0,
         lines: [],
       };
       newKnots.push(newKnot);
     }
-    return { ...state, knots: [...state.knots, ...newKnots] };
-  });
+    this.knots = [...this.knots, ...newKnots];
+  }
 
-  public removeKnot = this.updater((state, index: number): StoreModel => {
-    const newKnots: Knot[] = [...state.knots];
-    newKnots.splice(index, 1);
-    return { ...state, knots: newKnots };
-  });
+  public removeKnot(index: number): void {
+    this.knots.splice(index, 1);
+  }
 
   private calcNextFrame(): void {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       this.calcNextParticle();
-      for (let index = 0; index < this.knotsS().length; index++) {
-        if (this.isPressingS()) {
-          if (this.calcActions(this.knotsS()[index], index)) {
+      for (let index = 0; index < this.knots.length; index++) {
+        if (this.isPressing) {
+          if (this.calcActions(this.knots[index], index)) {
             continue;
           }
         }
-        this.calcConnectionMagnetic(this.knotsS()[index]);
-        this.calcBehavior(this.knotsS()[index]);
-        this.calcNextPos(this.knotsS()[index]);
-        this.calcBorders(this.knotsS()[index]);
+        this.calcConnectionMagnetic(this.knots[index]);
+        this.calcBehavior(this.knots[index]);
+        this.calcNextPos(this.knots[index]);
+        this.calcBorders(this.knots[index]);
         this.calcConnections(index);
-        this.paintLine(this.ctx, this.knotsS()[index]);
-        this.paintBall(this.ctx, this.knotsS()[index]);
-        // this.paintSquare(this.ctx, this.knotsS()[index]);
+        this.paintLine(this.ctx, this.knots[index]);
+        this.paintBall(this.ctx, this.knots[index]);
+        // this.paintSquare(this.ctx, this.knots[index]);
       }
-      this.setIsPressing(false);
+      this.isPressing = false;
     }
   }
 
@@ -175,13 +144,13 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   }
 
   private calcBehavior(ball: Knot): void {
-    if (ball.speed < this.minS()) {
-      ball.speed = this.minS();
+    if (ball.speed < this.minSpeed) {
+      ball.speed = this.minSpeed;
     } else {
-      ball.speed -= this.dampingS();
+      ball.speed -= this.damping;
     }
-    if (ball.speed > this.maxS()) {
-      ball.speed = this.maxS();
+    if (ball.speed > this.maxSpeed) {
+      ball.speed = this.maxSpeed;
     }
   }
 
@@ -191,20 +160,20 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   }
 
   private calcConnections(knotIndex: number): void {
-    const knot = this.knotsS()[knotIndex];
+    const knot = this.knots[knotIndex];
     const lines: Lines[] = [];
     let distanceTotal = 0;
-    for (let index = knotIndex; index < this.knotsS().length; index++) {
-      const target: Vector2 = this.knotsS()[index].pos;
+    for (let index = knotIndex; index < this.knots.length; index++) {
+      const target: Vector2 = this.knots[index].pos;
       const distance = this.vector2.distance(knot.pos, target);
-      if (distance < this.connectDistS()) {
+      if (distance < this.connectDist) {
         lines.push({ target, distance });
-        distanceTotal += this.connectDistS() - distance;
+        distanceTotal += this.connectDist - distance;
       }
     }
     let radius = Math.round(this.radius * 10 - distanceTotal) * 0.1;
-    if (radius < this.widthS()) {
-      radius = this.widthS();
+    if (radius < this.lineWidth) {
+      radius = this.lineWidth;
     }
     knot.radius = radius;
     knot.lines = lines;
@@ -213,8 +182,6 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
   private calcConnectionMagnetic(knot: Knot): void {
     for (const line of knot.lines) {
       const magnetic = this.vector2.sub(knot.pos, line.target);
-      // knot.dir.x -= magnetic.x * (this.connectDistS() - this.radius) * 0.00001;
-      // knot.dir.y -= magnetic.y * (this.connectDistS() - this.radius) * 0.00001;
       knot.dir.x -= magnetic.x * 0.00008;
       knot.dir.y -= magnetic.y * 0.00008;
     }
@@ -265,14 +232,14 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
         ${line.distance * 4},
         ${line.distance * 4},
         ${line.distance * 4},
-        ${(this.connectDistS() - line.distance) / this.connectDistS()})`;
+        ${(this.connectDist - line.distance) / this.connectDist})`;
       ctx.moveTo(ball.pos.x, ball.pos.y);
       ctx.lineTo(line.target.x, line.target.y);
       ctx.stroke();
     }
   }
 
-  public createParticles = this.updater((state, position: Vector2): StoreModel => {
+  public createParticles(position: Vector2): void {
     const newParticles: Particle[] = [];
     for (let index = 0; index < 96; index++) {
       const newParticle: Particle = {
@@ -287,13 +254,16 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
       };
       newParticles.push(newParticle);
     }
-    return { ...state, particles: [...state.particles, ...newParticles] };
-  });
+    this.particles = [...this.particles, ...newParticles];
+  }
 
   private calcNextParticle(): void {
     if (this.ctx) {
       let destroy = false;
-      for (const particle of this.particlesS()) {
+      for (const particle of this.particles) {
+        if (particle.speed > 1.5) {
+          particle.speed -= 0.1;
+        }
         particle.pos.x += particle.dir.x * particle.speed; // * (particle.lifetime * 10);
         particle.pos.y += particle.dir.y * particle.speed; // * (particle.lifetime * 10);
         particle.radius -= 0.03;
@@ -316,9 +286,7 @@ export class WebKnotStore extends ComponentStore<StoreModel> {
     ctx.fill(circle);
   }
 
-  public removeParticle = this.updater((state, amount: number): StoreModel => {
-    const newParticles: Particle[] = [...state.particles];
-    newParticles.splice(0, amount);
-    return { ...state, particles: newParticles };
-  });
+  public removeParticle(amount: number): void {
+    this.particles.splice(0, amount);
+  }
 }

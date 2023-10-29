@@ -2,7 +2,7 @@ import { ScreenService } from 'src/app/services/screen.service';
 import { MachineInfoService } from 'src/app/services/machine-info.service';
 import { FullscreenService } from 'src/app/services/fullscreen.service';
 import { FpsMeterService } from 'src/app/services/fps-meter.service';
-import { WebKnotStore } from 'src/app/stores/web-knot.store';
+import { WebKnotService } from 'src/app/stores/web-knot.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -28,7 +28,7 @@ export class GameComponent implements AfterViewInit {
   private detector = inject(ChangeDetectorRef);
   public screen = inject(ScreenService);
   public fpsMeter = inject(FpsMeterService);
-  public store = inject(WebKnotStore);
+  public store = inject(WebKnotService);
 
   @HostListener('window:keydown', ['$event']) onKey(event: KeyboardEvent) {
     if (event.code === 'Space') {
