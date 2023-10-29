@@ -2,7 +2,6 @@ import { ScreenService } from 'src/app/services/screen.service';
 import { MachineInfoService } from 'src/app/services/machine-info.service';
 import { FullscreenService } from 'src/app/services/fullscreen.service';
 import { FpsMeterService } from 'src/app/services/fps-meter.service';
-import { WebKnotService } from 'src/app/stores/web-knot.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -14,6 +13,7 @@ import {
   effect,
   inject,
 } from '@angular/core';
+import { WebKnotService } from 'src/app/services/web-knot.service';
 
 @Component({
   selector: 'game',
