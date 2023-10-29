@@ -4,6 +4,7 @@ import { BehaviorSubject } from 'rxjs';
 import { FpsMeterService } from './fps-meter.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from './pointer-event.service';
+import { LimitNumber } from '../pipes/limit.pipe';
 
 interface Particle {
   pos: Vector2;
@@ -22,6 +23,7 @@ interface Knot {
   speed: number;
   radius: number;
   lines: Lines[];
+  lineLength: number;
 }
 
 @Injectable({
@@ -33,6 +35,7 @@ export class WebKnotService {
   private ngZone = inject(NgZone);
   private destroy = inject(DestroyRef);
   private pointer = inject(PointerEventService);
+  private limit = inject(LimitNumber);
 
   private canvas: HTMLCanvasElement | undefined;
   private ctx: CanvasRenderingContext2D | undefined;
@@ -41,15 +44,14 @@ export class WebKnotService {
   private pointerPos: Vector2 = { x: 0, y: 0 };
   public range = 120;
   public power = 64;
-  public radius = 32;
 
   private knots: Knot[] = [];
   private particles: Particle[] = [];
   private connectDist = 140;
   private minSpeed = 0.3;
-  private maxSpeed = 5;
+  private maxSpeed = 3;
   private damping = 0.005;
-  private lineWidth = 5;
+  private lineWidth = 1;
   private isPressing = false;
 
   constructor() {
@@ -93,8 +95,9 @@ export class WebKnotService {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: Math.random() + index * 0.05 * this.minSpeed,
-        radius: 0,
+        radius: 5,
         lines: [],
+        lineLength: 0,
       };
       newKnots.push(newKnot);
     }
@@ -122,41 +125,42 @@ export class WebKnotService {
         this.calcConnections(index);
         this.paintLine(this.ctx, this.knots[index]);
         this.paintBall(this.ctx, this.knots[index]);
+        this.paintProtection(this.ctx, this.knots[index]);
         // this.paintSquare(this.ctx, this.knots[index]);
       }
       this.isPressing = false;
     }
   }
 
-  private calcActions(ball: Knot, index: number): boolean {
-    const distance = this.vector2.distance(ball.pos, this.pointerPos);
+  private calcActions(knot: Knot, index: number): boolean {
+    const distance = this.vector2.distance(knot.pos, this.pointerPos);
     if (distance < this.range) {
-      console.log(ball.radius, this.radius - 16);
-      if (distance < ball.radius && ball.radius >= this.radius - 16) {
+      if (distance < knot.radius * 2 && knot.lines.length <= 1) {
+        //TODO Später abfragew ob protected...
         this.removeKnot(index);
-        this.createParticles(ball.pos); //TODO sehen was passiert wenn da geclont wird...
+        this.createParticles(knot.pos); //TODO sehen was passiert wenn da geclont wird...
         return true;
       }
-      ball.dir = this.vector2.normalize(this.vector2.sub(ball.pos, this.pointerPos));
-      ball.speed = (this.power / distance) * 10;
+      knot.dir = this.vector2.normalize(this.vector2.sub(knot.pos, this.pointerPos));
+      knot.speed = (this.power / distance) * 10;
     }
     return false;
   }
 
-  private calcBehavior(ball: Knot): void {
-    if (ball.speed < this.minSpeed) {
-      ball.speed = this.minSpeed;
+  private calcBehavior(knot: Knot): void {
+    if (knot.speed < this.minSpeed) {
+      knot.speed = this.minSpeed;
     } else {
-      ball.speed -= this.damping;
+      knot.speed -= this.damping;
     }
-    if (ball.speed > this.maxSpeed) {
-      ball.speed = this.maxSpeed;
+    if (knot.speed > this.maxSpeed) {
+      knot.speed = this.maxSpeed;
     }
   }
 
-  private calcNextPos(ball: Knot): void {
-    ball.pos.x += ball.dir.x * ball.speed;
-    ball.pos.y += ball.dir.y * ball.speed;
+  private calcNextPos(knot: Knot): void {
+    knot.pos.x += knot.dir.x * knot.speed;
+    knot.pos.y += knot.dir.y * knot.speed;
   }
 
   private calcConnections(knotIndex: number): void {
@@ -171,19 +175,17 @@ export class WebKnotService {
         distanceTotal += this.connectDist - distance;
       }
     }
-    let radius = Math.round(this.radius * 10 - distanceTotal) * 0.1;
-    if (radius < this.lineWidth) {
-      radius = this.lineWidth;
-    }
-    knot.radius = radius;
+    knot.lineLength = distanceTotal;
     knot.lines = lines;
   }
 
   private calcConnectionMagnetic(knot: Knot): void {
     for (const line of knot.lines) {
       const magnetic = this.vector2.sub(knot.pos, line.target);
-      knot.dir.x -= magnetic.x * 0.00008;
-      knot.dir.y -= magnetic.y * 0.00008;
+      knot.dir.x -= magnetic.x * 0.00007;
+      knot.dir.y -= magnetic.y * 0.00007;
+      knot.dir.x = this.limit.transform(knot.dir.x, -3, 3, false);
+      knot.dir.y = this.limit.transform(knot.dir.y, -3, 3, false);
     }
   }
 
@@ -218,24 +220,30 @@ export class WebKnotService {
     ctx.fill(path2D);
   }
 
-  // private paintTest(ctx: CanvasRenderingContext2D, ball: Knot): void {
-  //   ctx.fillStyle = '#aaaaaa';
-  //   const path2D = new Path2D();
-  //   path2D.ellipse(ball.pos.x - ball.radius * 0.5, ball.pos.y - ball.radius * 0.5, ball.radius, ball.radius);
-  //   ctx.fill(path2D);
-  // }
+  private paintTest(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    ctx.fillStyle = '#aaaaaa';
+    const path2D = new Path2D();
+    var path = new Path2D('M 100,100 h 50 v 50 h 50');
+    ctx.fill(path2D);
+  }
 
-  private paintLine(ctx: CanvasRenderingContext2D, ball: Knot): void {
-    for (const line of ball.lines) {
+  private paintLine(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    for (const line of knot.lines) {
       ctx.beginPath();
       ctx.strokeStyle = `rgba(
         ${line.distance * 4},
         ${line.distance * 4},
         ${line.distance * 4},
         ${(this.connectDist - line.distance) / this.connectDist})`;
-      ctx.moveTo(ball.pos.x, ball.pos.y);
+      ctx.moveTo(knot.pos.x, knot.pos.y);
       ctx.lineTo(line.target.x, line.target.y);
       ctx.stroke();
+    }
+  }
+
+  private paintProtection(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    if (knot.lineLength > 1) {
+      this.drawBezierCircle(ctx, knot.pos.x, knot.pos.y, knot.radius * 2);
     }
   }
 
@@ -288,5 +296,31 @@ export class WebKnotService {
 
   public removeParticle(amount: number): void {
     this.particles.splice(0, amount);
+  }
+
+  private drawBezierCircle(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, size: number) {
+    this.drawBezierCircleQuarter(ctx, centerX, centerY, -size, size);
+    this.drawBezierCircleQuarter(ctx, centerX, centerY, size, size);
+    this.drawBezierCircleQuarter(ctx, centerX, centerY, size, -size);
+    this.drawBezierCircleQuarter(ctx, centerX, centerY, -size, -size);
+  }
+  private drawBezierCircleQuarter(
+    ctx: CanvasRenderingContext2D,
+    centerX: number,
+    centerY: number,
+    sizeX: number,
+    sizeY: number,
+  ) {
+    ctx.beginPath();
+    ctx.moveTo(centerX - sizeX, centerY - 0);
+    ctx.bezierCurveTo(
+      centerX - sizeX,
+      centerY - 0.552 * sizeY,
+      centerX - 0.552 * sizeX,
+      centerY - sizeY,
+      centerX - 0,
+      centerY - sizeY,
+    );
+    ctx.stroke();
   }
 }
