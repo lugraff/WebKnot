@@ -124,7 +124,7 @@ export class WebKnotService {
         this.calcBorders(this.knots[index]);
         this.calcConnections(index);
         this.paintLine(this.ctx, this.knots[index]);
-        this.paintBall(this.ctx, this.knots[index]);
+        this.paintKnot(this.ctx, this.knots[index]);
         this.paintProtection(this.ctx, this.knots[index]);
         // this.paintSquare(this.ctx, this.knots[index]);
       }
@@ -135,10 +135,9 @@ export class WebKnotService {
   private calcActions(knot: Knot, index: number): boolean {
     const distance = this.vector2.distance(knot.pos, this.pointerPos);
     if (distance < this.range) {
-      if (distance < knot.radius * 2 && knot.lines.length <= 0) {
-        //TODO Später abfragew ob protected...
+      if (distance < knot.radius && knot.lines.length <= 0) {
         this.removeKnot(index);
-        this.createParticles(knot.pos); //TODO sehen was passiert wenn da geclont wird...
+        this.createParticles(knot.pos);
         return true;
       }
       knot.dir = this.vector2.normalize(this.vector2.sub(knot.pos, this.pointerPos));
@@ -209,7 +208,7 @@ export class WebKnotService {
     }
   }
 
-  private paintBall(ctx: CanvasRenderingContext2D, knot: Knot): void {
+  private paintKnot(ctx: CanvasRenderingContext2D, knot: Knot): void {
     var gradient = ctx.createRadialGradient(knot.pos.x, knot.pos.y, 0.5, knot.pos.x, knot.pos.y, knot.radius);
     gradient.addColorStop(0, 'white');
     gradient.addColorStop(1, 'transparent');
