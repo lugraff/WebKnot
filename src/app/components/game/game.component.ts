@@ -14,18 +14,19 @@ import {
   inject,
 } from '@angular/core';
 import { WebKnotService } from 'src/app/services/web-knot.service';
+import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'game',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './game.component.html',
 })
 export class GameComponent implements AfterViewInit {
   private machine = inject(MachineInfoService);
-  private fullscreen = inject(FullscreenService);
   private detector = inject(ChangeDetectorRef);
+  public fullscreen = inject(FullscreenService);
   public screen = inject(ScreenService);
   public fpsMeter = inject(FpsMeterService);
   public store = inject(WebKnotService);

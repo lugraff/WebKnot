@@ -1,4 +1,3 @@
-<!-- <div class="fixed right-0 top-0 z-10 font-bold select-none pointer-events-none">{{fpsMeter.fpsC()}}</div> -->
 <canvas id="canvas" class="bg-textB cursor-crosshair select-none transform-gpu" [width]="screen.sampledWindowWidthS()"
     [height]="screen.sampledWindowHeightS()"></canvas>
 <div
@@ -9,3 +8,7 @@
         class="w-1/2 h-full">
     </div>
 </div>
+
+<global-icon *ngIf="!fullscreen.isFullScreenS()" class="fixed right-4 bottom-4" icon="octScreenFull"
+    (click)="fullscreen.setFullScreen(true)">
+</global-icon>
