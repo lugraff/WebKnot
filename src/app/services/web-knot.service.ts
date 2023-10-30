@@ -95,7 +95,7 @@ export class WebKnotService {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: Math.random() + index * 0.05 * this.minSpeed,
-        radius: 5,
+        radius: 16,
         lines: [],
         lineLength: 0,
       };
@@ -135,7 +135,7 @@ export class WebKnotService {
   private calcActions(knot: Knot, index: number): boolean {
     const distance = this.vector2.distance(knot.pos, this.pointerPos);
     if (distance < this.range) {
-      if (distance < knot.radius * 2 && knot.lines.length <= 1) {
+      if (distance < knot.radius * 2 && knot.lines.length <= 0) {
         //TODO Später abfragew ob protected...
         this.removeKnot(index);
         this.createParticles(knot.pos); //TODO sehen was passiert wenn da geclont wird...
@@ -168,6 +168,9 @@ export class WebKnotService {
     const lines: Lines[] = [];
     let distanceTotal = 0;
     for (let index = knotIndex; index < this.knots.length; index++) {
+      if (knotIndex === index) {
+        continue;
+      }
       const target: Vector2 = this.knots[index].pos;
       const distance = this.vector2.distance(knot.pos, target);
       if (distance < this.connectDist) {
@@ -207,23 +210,19 @@ export class WebKnotService {
   }
 
   private paintBall(ctx: CanvasRenderingContext2D, knot: Knot): void {
-    ctx.fillStyle = '#aaaaaa';
-    const circle = new Path2D();
-    circle.arc(knot.pos.x, knot.pos.y, knot.radius, 0, 2 * Math.PI);
-    ctx.fill(circle);
+    var gradient = ctx.createRadialGradient(knot.pos.x, knot.pos.y, 0.5, knot.pos.x, knot.pos.y, knot.radius);
+    gradient.addColorStop(0, 'white');
+    gradient.addColorStop(1, 'transparent');
+    const path2D = new Path2D();
+    path2D.arc(knot.pos.x, knot.pos.y, knot.radius, 0, 2 * Math.PI);
+    ctx.fillStyle = gradient;
+    ctx.fill(path2D);
   }
 
   private paintSquare(ctx: CanvasRenderingContext2D, knot: Knot): void {
     ctx.fillStyle = '#aaaaaa';
     const path2D = new Path2D();
     path2D.roundRect(knot.pos.x - knot.radius * 0.5, knot.pos.y - knot.radius * 0.5, knot.radius, knot.radius, Math.PI);
-    ctx.fill(path2D);
-  }
-
-  private paintTest(ctx: CanvasRenderingContext2D, knot: Knot): void {
-    ctx.fillStyle = '#aaaaaa';
-    const path2D = new Path2D();
-    var path = new Path2D('M 100,100 h 50 v 50 h 50');
     ctx.fill(path2D);
   }
 
@@ -242,8 +241,13 @@ export class WebKnotService {
   }
 
   private paintProtection(ctx: CanvasRenderingContext2D, knot: Knot): void {
-    if (knot.lineLength > 1) {
-      this.drawBezierCircle(ctx, knot.pos.x, knot.pos.y, knot.radius * 2);
+    if (knot.lines.length > 0) {
+      ctx.strokeStyle = `rgba(
+        100,
+        100,
+        100,
+        ${(1 / 100) * knot.lineLength})`;
+      this.drawBezierCircle(ctx, knot.pos.x, knot.pos.y, knot.radius);
     }
   }
 
