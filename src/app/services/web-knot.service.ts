@@ -24,6 +24,7 @@ interface Knot {
   radius: number;
   lines: Lines[];
   lineLength: number;
+  special: number;
 }
 
 @Injectable({
@@ -88,6 +89,10 @@ export class WebKnotService {
   public createKnots(amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
+      let randomSpezial = Math.floor(Math.random() * 32) + 2; // 2:??? 3:stop 4:??? 5:score 6:detonation
+      if (randomSpezial > 6) {
+        randomSpezial = 0;
+      }
       const newKnot: Knot = {
         pos: { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight },
         dir: this.vector2.normalize({
@@ -98,6 +103,7 @@ export class WebKnotService {
         radius: 16,
         lines: [],
         lineLength: 0,
+        special: randomSpezial,
       };
       newKnots.push(newKnot);
     }
@@ -126,6 +132,7 @@ export class WebKnotService {
         this.paintLine(this.ctx, this.knots[index]);
         this.paintKnot(this.ctx, this.knots[index]);
         this.paintProtection(this.ctx, this.knots[index]);
+        this.paintForm(this.ctx, this.knots[index]);
         // this.paintSquare(this.ctx, this.knots[index]);
       }
       this.isPressing = false;
@@ -216,6 +223,29 @@ export class WebKnotService {
     path2D.arc(knot.pos.x, knot.pos.y, knot.radius, 0, 2 * Math.PI);
     ctx.fillStyle = gradient;
     ctx.fill(path2D);
+  }
+
+  private paintForm(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    if (knot.special < 2) {
+      return;
+    }
+    ctx.strokeStyle = `rgba(256,256,256,0.3)`;
+    ctx.beginPath();
+    ctx.moveTo(knot.pos.x + knot.radius, knot.pos.y);
+    for (var i = 1; i <= knot.special * 2; i++) {
+      if (i % 2 == 0) {
+        var theta = (i * (Math.PI * 2)) / (knot.special * 2);
+        var x = knot.pos.x + knot.radius * Math.cos(theta);
+        var y = knot.pos.y + knot.radius * Math.sin(theta);
+      } else {
+        var theta = (i * (Math.PI * 2)) / (knot.special * 2);
+        var x = knot.pos.x + (knot.radius / 2) * Math.cos(theta);
+        var y = knot.pos.y + (knot.radius / 2) * Math.sin(theta);
+      }
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
   }
 
   private paintSquare(ctx: CanvasRenderingContext2D, knot: Knot): void {
