@@ -43,9 +43,12 @@ export class WebKnotService {
   private pointerPos: Vector2 = { x: 0, y: 0 };
   private knots: Knot[] = [];
   private particles: Particle[] = [];
+  private expandTimer: any;
+  private loseTimer: any;
+  private stopTimer: any;
   private isPressing = false;
   private connectDist = 0;
-  private readonly lineWidth = 1;
+  private readonly lineWidth = 2;
 
   public range = 120;
   public power = 64;
@@ -71,7 +74,6 @@ export class WebKnotService {
     if (this.canvas) {
       this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
       this.ctx.lineCap = 'round';
-      this.ctx.lineWidth = this.lineWidth;
     }
     this.processing
       .pipe(takeUntilDestroyed(this.destroy))
@@ -100,8 +102,8 @@ export class WebKnotService {
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
         }),
-        speed: Math.random() + index * 0.03,
-        radius: 16,
+        speed: Math.random() * this.maxSpeed,
+        radius: 10 * this.lineWidth,
         lines: [],
         lineLength: 0,
         special: randomSpezial,
@@ -118,6 +120,7 @@ export class WebKnotService {
   private calcNextFrame(): void {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      this.ctx.lineWidth = this.lineWidth;
       this.calcNextParticle();
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
@@ -127,7 +130,7 @@ export class WebKnotService {
           }
         }
         this.calcConnectionMagnetic(this.knots[index]);
-        this.calcBehavior(this.knots[index]);
+        this.calcSpeed(this.knots[index]);
         this.calcNextPos(this.knots[index]);
         this.calcBorders(this.knots[index]);
         this.calcConnections(index);
@@ -157,7 +160,7 @@ export class WebKnotService {
     return false;
   }
 
-  private calcBehavior(knot: Knot): void {
+  private calcSpeed(knot: Knot): void {
     if (knot.speed < this.minSpeed) {
       knot.speed += 0.01;
     } else {
@@ -194,11 +197,13 @@ export class WebKnotService {
 
   private calcConnectionMagnetic(knot: Knot): void {
     for (const line of knot.lines) {
-      const magnetic = this.vector2.sub(knot.pos, line.target);
-      knot.dir.x -= magnetic.x * 0.00007 * this.gravitation;
-      knot.dir.y -= magnetic.y * 0.00007 * this.gravitation;
-      knot.dir.x = this.limit.transform(knot.dir.x, -Math.PI, Math.PI, false);
-      knot.dir.y = this.limit.transform(knot.dir.y, -Math.PI, Math.PI, false);
+      if (line.distance > knot.radius) {
+        const magnetic = this.vector2.sub(knot.pos, line.target);
+        knot.dir.x -= magnetic.x * 0.00007 * this.gravitation;
+        knot.dir.y -= magnetic.y * 0.00007 * this.gravitation;
+        knot.dir.x = this.limit.transform(knot.dir.x, -Math.PI, Math.PI, false);
+        knot.dir.y = this.limit.transform(knot.dir.y, -Math.PI, Math.PI, false);
+      }
     }
   }
 
@@ -388,13 +393,14 @@ export class WebKnotService {
   private detonation(): void {
     for (let index = 0; index < this.knots.length - 1; index++) {
       if (this.knots[index].lines.length <= 0) {
-        this.removeKnot(index);
         this.createParticles(this.knots[index].pos);
       }
     }
+    this.knots = this.knots.filter((knot) => knot.lines.length > 0);
   }
 
   private stop(): void {
+    clearTimeout(this.stopTimer);
     for (const knot of this.knots) {
       knot.dir = { x: 0, y: 0 };
       knot.speed = 0;
@@ -402,26 +408,28 @@ export class WebKnotService {
     const lastMinSpeed = this.minSpeed;
     this.minSpeed = 0;
     this.ngZone.runOutsideAngular(() => {
-      setTimeout(() => {
+      this.stopTimer = setTimeout(() => {
         this.minSpeed = lastMinSpeed;
       }, 1111);
     });
   }
 
   private expand(): void {
+    clearTimeout(this.expandTimer);
     this.gravitation = -9;
     this.ngZone.runOutsideAngular(() => {
-      setTimeout(() => {
+      this.expandTimer = setTimeout(() => {
         this.gravitation = 1;
       }, 7777);
     });
   }
 
   private lose(): void {
+    clearTimeout(this.loseTimer);
     const lastConnectDistTarget = this.connectDist;
     this.connectDistTarget = 0;
     this.ngZone.runOutsideAngular(() => {
-      setTimeout(() => {
+      this.loseTimer = setTimeout(() => {
         this.connectDistTarget = lastConnectDistTarget;
       }, 3333);
     });
