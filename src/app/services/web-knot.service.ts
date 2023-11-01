@@ -52,6 +52,7 @@ export class WebKnotService {
   private minSpeed = 0.3;
   private maxSpeed = 3;
   private damping = 0.005;
+  private gravitation = 1; // -50 to 50
   private lineWidth = 1;
   private isPressing = false;
 
@@ -89,7 +90,7 @@ export class WebKnotService {
   public createKnots(amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
-      let randomSpezial = Math.floor(Math.random() * 32) + 2; // 2:??? 3:stop 4:??? 5:score 6:detonation
+      let randomSpezial = Math.floor(Math.random() * 32) + 2;
       if (randomSpezial > 6) {
         randomSpezial = 0;
       }
@@ -132,8 +133,7 @@ export class WebKnotService {
         this.paintLine(this.ctx, this.knots[index]);
         this.paintKnot(this.ctx, this.knots[index]);
         this.paintProtection(this.ctx, this.knots[index]);
-        this.paintForm(this.ctx, this.knots[index]);
-        // this.paintSquare(this.ctx, this.knots[index]);
+        this.paintSpezial(this.ctx, this.knots[index]);
       }
       this.isPressing = false;
     }
@@ -145,6 +145,9 @@ export class WebKnotService {
       if (distance < knot.radius && knot.lines.length <= 0) {
         this.removeKnot(index);
         this.createParticles(knot.pos);
+        if (knot.special > 1) {
+          this.fireSpezial(knot.special);
+        }
         return true;
       }
       knot.dir = this.vector2.normalize(this.vector2.sub(knot.pos, this.pointerPos));
@@ -191,8 +194,8 @@ export class WebKnotService {
   private calcConnectionMagnetic(knot: Knot): void {
     for (const line of knot.lines) {
       const magnetic = this.vector2.sub(knot.pos, line.target);
-      knot.dir.x -= magnetic.x * 0.00007;
-      knot.dir.y -= magnetic.y * 0.00007;
+      knot.dir.x -= magnetic.x * 0.00007 * this.gravitation;
+      knot.dir.y -= magnetic.y * 0.00007 * this.gravitation;
       knot.dir.x = this.limit.transform(knot.dir.x, -3, 3, false);
       knot.dir.y = this.limit.transform(knot.dir.y, -3, 3, false);
     }
@@ -225,7 +228,7 @@ export class WebKnotService {
     ctx.fill(path2D);
   }
 
-  private paintForm(ctx: CanvasRenderingContext2D, knot: Knot): void {
+  private paintSpezial(ctx: CanvasRenderingContext2D, knot: Knot): void {
     if (knot.special < 2) {
       return;
     }
@@ -355,5 +358,52 @@ export class WebKnotService {
       centerY - sizeY,
     );
     ctx.stroke();
+  }
+
+  private fireSpezial(spezial: number): void {
+    switch (spezial) {
+      case 2:
+        //fulltime
+        break;
+      case 3:
+        this.stop();
+        break;
+      case 4:
+        this.expand();
+        break;
+      case 5:
+        //score
+        break;
+      case 6:
+        this.detonation();
+        break;
+      default:
+        break;
+    }
+  }
+
+  private detonation(): void {
+    for (let index = 0; index < this.knots.length - 1; index++) {
+      if (this.knots[index].lines.length <= 0) {
+        this.removeKnot(index);
+        this.createParticles(this.knots[index].pos);
+      }
+    }
+  }
+
+  private stop(): void {
+    for (const knot of this.knots) {
+      knot.dir = { x: 0, y: 0 };
+      knot.speed = 0;
+    }
+  }
+
+  private expand(): void {
+    this.gravitation = -9;
+    this.ngZone.runOutsideAngular(() => {
+      setTimeout(() => {
+        this.gravitation = 1;
+      }, 7777);
+    });
   }
 }
