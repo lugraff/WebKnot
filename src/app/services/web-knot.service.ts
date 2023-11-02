@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, NgZone, inject } from '@angular/core';
 import { Vector2, Vector2Service } from './vector2.service';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, timeout } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from './pointer-event.service';
 import { LimitNumber } from '../pipes/limit.pipe';
@@ -48,6 +48,7 @@ export class WebKnotService {
   private stopTimer: any;
   private isPressing = false;
   private connectDist = 0;
+  private isConnectHalf = false;
   private readonly lineWidth = 2;
 
   public range = 120;
@@ -92,7 +93,7 @@ export class WebKnotService {
   public createKnots(amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
-      let randomSpezial = Math.floor(Math.random() * 32) + 2;
+      let randomSpezial = Math.floor(Math.random() * 3) + 2;
       if (randomSpezial > 6) {
         randomSpezial = 0;
       }
@@ -147,8 +148,8 @@ export class WebKnotService {
     const distance = this.vector2.distance(knot.pos, this.pointerPos);
     if (distance < this.range) {
       if (distance < knot.radius && knot.lines.length <= 0) {
-        this.removeKnot(index);
         this.createParticles(knot.pos);
+        this.removeKnot(index);
         if (knot.special > 1) {
           this.fireSpezial(knot.special);
         }
@@ -371,7 +372,7 @@ export class WebKnotService {
   private fireSpezial(spezial: number): void {
     switch (spezial) {
       case 2:
-        this.lose();
+        this.disturb();
         break;
       case 3:
         this.stop();
@@ -424,13 +425,18 @@ export class WebKnotService {
     });
   }
 
-  private lose(): void {
-    clearTimeout(this.loseTimer);
+  private disturb(): void {
+    if (this.isConnectHalf) {
+      //TODO timeout wieder verlängern!
+      return;
+    }
+    this.isConnectHalf = true;
     const lastConnectDistTarget = this.connectDist;
-    this.connectDistTarget = 0;
+    this.connectDistTarget *= 0.5;
     this.ngZone.runOutsideAngular(() => {
       this.loseTimer = setTimeout(() => {
         this.connectDistTarget = lastConnectDistTarget;
+        this.isConnectHalf = false;
       }, 3333);
     });
   }
