@@ -18,8 +18,10 @@ export function drawStarN(
   radius: number,
   n: number,
   strokeStyle: string,
+  lineWidth: number,
 ) {
   ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
   ctx.beginPath();
   ctx.moveTo(origin.x + radius, origin.y);
   for (var i = 1; i <= n * 2; i++) {
@@ -44,8 +46,10 @@ export function drawCircle(
   centerY: number,
   size: number,
   strokeStyle: string,
+  lineWidth: number,
 ) {
   ctx.strokeStyle = strokeStyle;
+
   drawBezierCircleQuarter(ctx, centerX, centerY, -size, size);
   drawBezierCircleQuarter(ctx, centerX, centerY, size, size);
   drawBezierCircleQuarter(ctx, centerX, centerY, size, -size);
@@ -72,8 +76,15 @@ function drawBezierCircleQuarter(
   ctx.stroke();
 }
 
-export function drawLine(ctx: CanvasRenderingContext2D, origin: Vector2, target: Vector2, strokeStyle: string) {
+export function drawLine(
+  ctx: CanvasRenderingContext2D,
+  origin: Vector2,
+  target: Vector2,
+  strokeStyle: string,
+  lineWidth: number,
+) {
   ctx.strokeStyle = strokeStyle;
+  ctx.lineWidth = lineWidth;
   ctx.beginPath();
   ctx.moveTo(origin.x, origin.y);
   ctx.lineTo(target.x, target.y);

@@ -71,11 +71,12 @@ export class WebKnotService {
     // event.index
   }
 
-  public initCanvas(): void {
-    this.canvas = document.getElementById('canvas') as HTMLCanvasElement;
+  public initCanvas(elementId: string): void {
+    this.canvas = document.getElementById(elementId) as HTMLCanvasElement;
     if (this.canvas) {
       this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
       this.ctx.lineCap = 'round';
+      // this.ctx.scale(0.5, 0.5);
     }
     this.processing
       .pipe(takeUntilDestroyed(this.destroy))
@@ -122,7 +123,6 @@ export class WebKnotService {
   private calcNextFrame(): void {
     if (this.ctx) {
       this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-      this.ctx.lineWidth = this.lineWidth;
       this.calcNextParticle();
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
@@ -245,21 +245,21 @@ export class WebKnotService {
   private drawSpezial(ctx: CanvasRenderingContext2D, knot: Knot): void {
     if (knot.special >= 2) {
       const strokeStyle = `rgba(256,256,256,0.3)`;
-      drawStarN(ctx, knot.pos, knot.radius, knot.special, strokeStyle);
+      drawStarN(ctx, knot.pos, knot.radius, knot.special, strokeStyle, this.lineWidth);
     }
   }
 
   private drawLines(ctx: CanvasRenderingContext2D, knot: Knot): void {
     for (const line of knot.lines) {
       const strokeStyle = `rgba(256,256,256,${(this.connectDist - line.distance) / this.connectDist})`;
-      drawLine(ctx, knot.pos, line.target, strokeStyle);
+      drawLine(ctx, knot.pos, line.target, strokeStyle, this.lineWidth);
     }
   }
 
   private drawProtection(ctx: CanvasRenderingContext2D, knot: Knot): void {
     if (knot.lines.length > 0) {
       const strokeStyle = `rgba(100,100,100,${(1 / 100) * knot.lineLength})`;
-      drawCircle(ctx, knot.pos.x, knot.pos.y, knot.radius, strokeStyle);
+      drawCircle(ctx, knot.pos.x, knot.pos.y, knot.radius, strokeStyle, this.lineWidth);
     }
   }
 

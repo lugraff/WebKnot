@@ -52,7 +52,7 @@ export class GameComponent implements AfterViewInit {
     if (this.machine.isTouch) {
       this.fullscreen.setFullScreen(true);
     }
-    this.store.initCanvas();
+    this.store.initCanvas('canvas');
     this.store.createKnots(16);
   }
 
