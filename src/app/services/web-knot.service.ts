@@ -4,6 +4,7 @@ import { BehaviorSubject, timeout } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from './pointer-event.service';
 import { LimitNumber } from '../pipes/limit.pipe';
+import { drawCircle, drawFilledCircle, drawLine, drawStarN } from '../helper/draw';
 
 interface Particle {
   pos: Vector2;
@@ -12,7 +13,7 @@ interface Particle {
   radius: number;
   lifetime: number;
 }
-interface Lines {
+interface Line {
   target: Vector2;
   distance: number;
 }
@@ -21,7 +22,7 @@ interface Knot {
   dir: Vector2;
   speed: number;
   radius: number;
-  lines: Lines[];
+  lines: Line[];
   lineLength: number;
   special: number;
 }
@@ -135,10 +136,10 @@ export class WebKnotService {
         this.calcNextPos(this.knots[index]);
         this.calcBorders(this.knots[index]);
         this.calcConnections(index);
-        this.paintLine(this.ctx, this.knots[index]);
-        this.paintKnot(this.ctx, this.knots[index]);
-        this.paintProtection(this.ctx, this.knots[index]);
-        this.paintSpezial(this.ctx, this.knots[index]);
+        this.drawLines(this.ctx, this.knots[index]);
+        this.drawKnot(this.ctx, this.knots[index]);
+        this.drawProtection(this.ctx, this.knots[index]);
+        this.drawSpezial(this.ctx, this.knots[index]);
       }
       this.isPressing = false;
     }
@@ -179,7 +180,7 @@ export class WebKnotService {
 
   private calcConnections(knotIndex: number): void {
     const knot = this.knots[knotIndex];
-    const lines: Lines[] = [];
+    const lines: Line[] = [];
     let distanceTotal = 0;
     for (let index = knotIndex; index < this.knots.length; index++) {
       if (knotIndex === index) {
@@ -234,61 +235,31 @@ export class WebKnotService {
     this.connectDist = Math.floor(this.connectDist);
   }
 
-  private paintKnot(ctx: CanvasRenderingContext2D, knot: Knot): void {
-    var gradient = ctx.createRadialGradient(knot.pos.x, knot.pos.y, 0.5, knot.pos.x, knot.pos.y, knot.radius);
+  private drawKnot(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    const gradient = ctx.createRadialGradient(knot.pos.x, knot.pos.y, 0.5, knot.pos.x, knot.pos.y, knot.radius);
     gradient.addColorStop(0, 'white');
     gradient.addColorStop(1, 'transparent');
-    const path2D = new Path2D();
-    path2D.arc(knot.pos.x, knot.pos.y, knot.radius, 0, 2 * Math.PI);
-    ctx.fillStyle = gradient;
-    ctx.fill(path2D);
+    drawFilledCircle(ctx, knot.pos, knot.radius, gradient);
   }
 
-  private paintSpezial(ctx: CanvasRenderingContext2D, knot: Knot): void {
-    if (knot.special < 2) {
-      return;
+  private drawSpezial(ctx: CanvasRenderingContext2D, knot: Knot): void {
+    if (knot.special >= 2) {
+      const strokeStyle = `rgba(256,256,256,0.3)`;
+      drawStarN(ctx, knot.pos, knot.radius, knot.special, strokeStyle);
     }
-    ctx.strokeStyle = `rgba(256,256,256,0.3)`;
-    ctx.beginPath();
-    ctx.moveTo(knot.pos.x + knot.radius, knot.pos.y);
-    for (var i = 1; i <= knot.special * 2; i++) {
-      if (i % 2 == 0) {
-        var theta = (i * (Math.PI * 2)) / (knot.special * 2);
-        var x = knot.pos.x + knot.radius * Math.cos(theta);
-        var y = knot.pos.y + knot.radius * Math.sin(theta);
-      } else {
-        var theta = (i * (Math.PI * 2)) / (knot.special * 2);
-        var x = knot.pos.x + (knot.radius / 2) * Math.cos(theta);
-        var y = knot.pos.y + (knot.radius / 2) * Math.sin(theta);
-      }
-      ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.stroke();
   }
 
-  private paintLine(ctx: CanvasRenderingContext2D, knot: Knot): void {
+  private drawLines(ctx: CanvasRenderingContext2D, knot: Knot): void {
     for (const line of knot.lines) {
-      ctx.beginPath();
-      ctx.strokeStyle = `rgba(
-        ${line.distance * 4},
-        ${line.distance * 4},
-        ${line.distance * 4},
-        ${(this.connectDist - line.distance) / this.connectDist})`;
-      ctx.moveTo(knot.pos.x, knot.pos.y);
-      ctx.lineTo(line.target.x, line.target.y);
-      ctx.stroke();
+      const strokeStyle = `rgba(256,256,256,${(this.connectDist - line.distance) / this.connectDist})`;
+      drawLine(ctx, knot.pos, line.target, strokeStyle);
     }
   }
 
-  private paintProtection(ctx: CanvasRenderingContext2D, knot: Knot): void {
+  private drawProtection(ctx: CanvasRenderingContext2D, knot: Knot): void {
     if (knot.lines.length > 0) {
-      ctx.strokeStyle = `rgba(
-        100,
-        100,
-        100,
-        ${(1 / 100) * knot.lineLength})`;
-      this.drawBezierCircle(ctx, knot.pos.x, knot.pos.y, knot.radius);
+      const strokeStyle = `rgba(100,100,100,${(1 / 100) * knot.lineLength})`;
+      drawCircle(ctx, knot.pos.x, knot.pos.y, knot.radius, strokeStyle);
     }
   }
 
@@ -333,40 +304,12 @@ export class WebKnotService {
   }
 
   private paintParticle(ctx: CanvasRenderingContext2D, particle: Particle): void {
-    ctx.fillStyle = `rgba(256,256,256,${(1 / 60) * particle.lifetime})`;
-    const circle = new Path2D();
-    circle.arc(particle.pos.x, particle.pos.y, particle.radius, 0, 2 * Math.PI);
-    ctx.fill(circle);
+    const fillStyle = `rgba(256,256,256,${(1 / 60) * particle.lifetime})`;
+    drawFilledCircle(ctx, particle.pos, particle.radius, fillStyle);
   }
 
   public removeParticle(amount: number): void {
     this.particles.splice(0, amount);
-  }
-
-  private drawBezierCircle(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, size: number) {
-    this.drawBezierCircleQuarter(ctx, centerX, centerY, -size, size);
-    this.drawBezierCircleQuarter(ctx, centerX, centerY, size, size);
-    this.drawBezierCircleQuarter(ctx, centerX, centerY, size, -size);
-    this.drawBezierCircleQuarter(ctx, centerX, centerY, -size, -size);
-  }
-  private drawBezierCircleQuarter(
-    ctx: CanvasRenderingContext2D,
-    centerX: number,
-    centerY: number,
-    sizeX: number,
-    sizeY: number,
-  ) {
-    ctx.beginPath();
-    ctx.moveTo(centerX - sizeX, centerY - 0);
-    ctx.bezierCurveTo(
-      centerX - sizeX,
-      centerY - 0.552 * sizeY,
-      centerX - 0.552 * sizeX,
-      centerY - sizeY,
-      centerX - 0,
-      centerY - sizeY,
-    );
-    ctx.stroke();
   }
 
   private fireSpezial(spezial: number): void {
