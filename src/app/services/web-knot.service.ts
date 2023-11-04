@@ -64,7 +64,7 @@ export class WebKnotService {
   private isPressing = false;
   private connectDist = 0;
   private isConnectHalf = false;
-  private readonly lineWidth = 2;
+  private readonly lineWidth = 6;
 
   public range = 120;
   public power = 64;
@@ -72,7 +72,7 @@ export class WebKnotService {
   private minSpeed = 0.3;
   private maxSpeed = 3;
   private damping = 0.005;
-  private connectDistTarget = 140;
+  private connectDistTarget = 300;
   private gravitation = 1;
 
   constructor() {
@@ -181,7 +181,7 @@ export class WebKnotService {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: Math.random() * this.maxSpeed,
-        radius: 10 * this.lineWidth,
+        radius: 9 * this.lineWidth,
         lines: [],
         lineLength: 0,
         special: randomSpezial,
@@ -202,9 +202,9 @@ export class WebKnotService {
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
         if (this.isPressing) {
-          if (index === 0) {
-            this.createParticles(this.pointerPos);
-          }
+          // if (index === 0) {
+          //   this.createParticles(this.pointerPos);
+          // }
           if (this.calcActions(this.knots[index], index)) {
             continue;
           }
@@ -345,13 +345,13 @@ export class WebKnotService {
     const newParticles: Particle[] = [];
     for (let index = 0; index < 96; index++) {
       const newParticle: Particle = {
-        pos: { x: position.x + (Math.random() - 0.5) * 12, y: position.y + (Math.random() - 0.5) * 12 },
+        pos: { x: position.x + (Math.random() - 0.5) * 24, y: position.y + (Math.random() - 0.5) * 24 },
         dir: this.vector2.normalize({
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
         }),
-        speed: 3 + index * 0.001 + Math.random() * 3,
-        radius: 2,
+        speed: 5 + index * 0.001 + Math.random() * 3,
+        radius: 4,
         lifetime: 60,
       };
       newParticles.push(newParticle);
