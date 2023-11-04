@@ -1,10 +1,11 @@
-import { DestroyRef, Injectable, NgZone, inject } from '@angular/core';
+import { DestroyRef, Injectable, NgZone, inject, signal } from '@angular/core';
 import { Vector2, Vector2Service } from './vector2.service';
-import { BehaviorSubject, timeout } from 'rxjs';
+import { BehaviorSubject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PointerEventService } from './pointer-event.service';
 import { LimitNumber } from '../pipes/limit.pipe';
 import { drawCircle, drawFilledCircle, drawLine, drawStarN } from '../helper/draw';
+import { ResizeObservableService } from './resize-observable.service';
 
 interface Particle {
   pos: Vector2;
@@ -27,6 +28,14 @@ interface Knot {
   special: number;
 }
 
+function calcPixel(): Vector2 {
+  if (screen.orientation.type === 'landscape-primary' || screen.orientation.type === 'landscape-secondary') {
+    return { x: 16 * 140, y: 9 * 140 };
+  } else {
+    return { x: 9 * 140, y: 16 * 140 };
+  }
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -36,12 +45,17 @@ export class WebKnotService {
   private destroy = inject(DestroyRef);
   private pointer = inject(PointerEventService);
   private limit = inject(LimitNumber);
+  private resize = inject(ResizeObservableService);
 
   private canvas: HTMLCanvasElement | undefined;
+  private canvasContainer: Element | undefined;
   private ctx: CanvasRenderingContext2D | undefined;
+
   public processing = new BehaviorSubject<boolean>(true);
+  public readonly pixelS = signal<Vector2>(calcPixel());
 
   private pointerPos: Vector2 = { x: 0, y: 0 };
+  private scaleFactor: Vector2 = { x: 1, y: 1 };
   private knots: Knot[] = [];
   private particles: Particle[] = [];
   private expandTimer: any;
@@ -63,7 +77,7 @@ export class WebKnotService {
 
   constructor() {
     this.pointer.pointerPosition.pipe(takeUntilDestroyed()).subscribe((event) => {
-      this.pointerPos = { x: event.position.x, y: event.position.y };
+      this.pointerPos = { x: event.position.x / this.scaleFactor.x, y: event.position.y / this.scaleFactor.y };
       if (event.pressed !== undefined) {
         this.isPressing = event.pressed;
       }
@@ -71,20 +85,78 @@ export class WebKnotService {
     // event.index
   }
 
-  public initCanvas(elementId: string): void {
-    this.canvas = document.getElementById(elementId) as HTMLCanvasElement;
-    if (this.canvas) {
-      this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
-      this.ctx.lineCap = 'round';
-      // this.ctx.scale(0.5, 0.5);
-    }
+  public init(): void {
     this.processing
       .pipe(takeUntilDestroyed(this.destroy))
       .subscribe(() => this.ngZone.runOutsideAngular(() => this.process(0)));
+    this.canvasContainer = document.getElementById('canvasContainer') as Element;
+    this.resize
+      .resizeObservable(this.canvasContainer)
+      .pipe(takeUntilDestroyed(this.destroy))
+      .pipe(debounceTime(100))
+      .pipe(distinctUntilChanged())
+      .subscribe((v) => {
+        this.initCanvas();
+      });
+    this.tryToCreateKnots();
+  }
+
+  private tryToCreateKnots(): void {
+    if (this.canvas) {
+      this.createKnots(this.canvas, 32);
+    } else {
+      setTimeout(() => {
+        this.tryToCreateKnots();
+      }, 103);
+    }
+  }
+
+  public initCanvas(): void {
+    this.canvas?.remove();
+    setTimeout(() => {
+      const newCanvas = document.createElement('canvas');
+      const size = calcPixel();
+      newCanvas.id = 'canvas';
+      newCanvas.width = size.x;
+      newCanvas.height = size.y;
+      newCanvas.style.overflow = 'hidden';
+      this.canvasContainer = document.getElementById('canvasContainer') as Element;
+      this.canvasContainer.appendChild(newCanvas);
+      this.canvas = newCanvas;
+      if (this.canvasContainer) {
+        this.ctx = newCanvas.getContext('2d') as CanvasRenderingContext2D;
+        this.ctx.lineCap = 'round';
+        this.scaleCanvas();
+      }
+    }, 0);
+  }
+
+  private scaleCanvas(): void {
+    if (this.canvasContainer && this.ctx) {
+      // No Aspect Ratio:
+      this.scaleFactor = {
+        x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
+        y: (1 / this.pixelS().y) * this.canvasContainer.clientHeight,
+      };
+      // With Aspect Ratio:
+      // if (this.pixelS().x < this.pixelS().y) {
+      //   this.scaleFactor = {
+      //     x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
+      //     y: (1 / (this.pixelS().x * 1.77777777777777777777777777777)) * this.canvasContainer.clientHeight,
+      //   };
+      // } else {
+      //   this.scaleFactor = {
+      //     x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
+      //     y: (1 / this.pixelS().y) * this.canvasContainer.clientHeight,
+      //   };
+      // }
+
+      this.ctx.scale(this.scaleFactor.x, this.scaleFactor.y);
+    }
   }
 
   private process(timestamp: number): void {
-    if (!this.processing.value || !this.canvas) {
+    if (!this.processing.value) {
       return;
     }
     // this.fpsMeter.calcFPS(timestamp);
@@ -92,7 +164,7 @@ export class WebKnotService {
     requestAnimationFrame((timestamp) => this.process(timestamp));
   }
 
-  public createKnots(amount: number): void {
+  public createKnots(canvas: HTMLCanvasElement, amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
       let randomSpezial = Math.floor(Math.random() * 3) + 2;
@@ -100,7 +172,10 @@ export class WebKnotService {
         randomSpezial = 0;
       }
       const newKnot: Knot = {
-        pos: { x: 0.5 * window.innerWidth, y: 0.5 * window.innerHeight },
+        pos: {
+          x: 0.5 * canvas.clientWidth,
+          y: 0.5 * canvas.clientHeight,
+        },
         dir: this.vector2.normalize({
           x: (Math.random() - 0.5) * 2,
           y: (Math.random() - 0.5) * 2,
@@ -122,11 +197,14 @@ export class WebKnotService {
 
   private calcNextFrame(): void {
     if (this.ctx) {
-      this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
       this.calcNextParticle();
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
         if (this.isPressing) {
+          if (index === 0) {
+            this.createParticles(this.pointerPos);
+          }
           if (this.calcActions(this.knots[index], index)) {
             continue;
           }
@@ -134,7 +212,7 @@ export class WebKnotService {
         this.calcConnectionMagnetic(this.knots[index]);
         this.calcSpeed(this.knots[index]);
         this.calcNextPos(this.knots[index]);
-        this.calcBorders(this.knots[index]);
+        this.calcBorders(this.ctx, this.knots[index]);
         this.calcConnections(index);
         this.drawLines(this.ctx, this.knots[index]);
         this.drawKnot(this.ctx, this.knots[index]);
@@ -209,19 +287,19 @@ export class WebKnotService {
     }
   }
 
-  private calcBorders(knot: Knot): void {
+  private calcBorders(ctx: CanvasRenderingContext2D, knot: Knot): void {
     if (knot.pos.y < knot.radius) {
       knot.pos.y = knot.radius;
       knot.dir.y = -knot.dir.y * 0.8;
-    } else if (knot.pos.y + knot.radius > window.innerHeight) {
-      knot.pos.y = window.innerHeight - knot.radius;
+    } else if (knot.pos.y + knot.radius > ctx.canvas.height) {
+      knot.pos.y = ctx.canvas.height - knot.radius;
       knot.dir.y = -knot.dir.y * 0.8;
     }
     if (knot.pos.x < knot.radius) {
       knot.pos.x = knot.radius;
       knot.dir.x = -knot.dir.x * 0.8;
-    } else if (knot.pos.x + knot.radius > window.innerWidth) {
-      knot.pos.x = window.innerWidth - knot.radius;
+    } else if (knot.pos.x + knot.radius > ctx.canvas.width) {
+      knot.pos.x = ctx.canvas.width - knot.radius;
       knot.dir.x = -knot.dir.x * 0.8;
     }
   }
@@ -273,7 +351,7 @@ export class WebKnotService {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: 3 + index * 0.001 + Math.random() * 3,
-        radius: 3,
+        radius: 2,
         lifetime: 60,
       };
       newParticles.push(newParticle);

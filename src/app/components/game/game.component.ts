@@ -1,16 +1,13 @@
 import { ScreenService } from 'src/app/services/screen.service';
 import { MachineInfoService } from 'src/app/services/machine-info.service';
 import { FullscreenService } from 'src/app/services/fullscreen.service';
-import { FpsMeterService } from 'src/app/services/fps-meter.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   HostListener,
-  effect,
   inject,
 } from '@angular/core';
 import { WebKnotService } from 'src/app/services/web-knot.service';
@@ -25,10 +22,8 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class GameComponent implements AfterViewInit {
   private machine = inject(MachineInfoService);
-  private detector = inject(ChangeDetectorRef);
   public fullscreen = inject(FullscreenService);
   public screen = inject(ScreenService);
-  public fpsMeter = inject(FpsMeterService);
   public store = inject(WebKnotService);
 
   @HostListener('window:keydown', ['$event']) onKey(event: KeyboardEvent) {
@@ -42,18 +37,13 @@ export class GameComponent implements AfterViewInit {
   }
 
   constructor() {
-    effect(() => {
-      this.fpsMeter.fpsC();
-      this.detector.detectChanges();
-    });
   }
 
   public ngAfterViewInit(): void {
     if (this.machine.isTouch) {
       this.fullscreen.setFullScreen(true);
     }
-    this.store.initCanvas('canvas');
-    this.store.createKnots(16);
+    this.store.init();
   }
 
   public onTogglePlaying(): void {
