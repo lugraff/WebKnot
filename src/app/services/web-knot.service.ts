@@ -66,8 +66,8 @@ export class WebKnotService {
   private isConnectHalf = false;
   private readonly lineWidth = 6;
 
-  public range = 120;
-  public power = 64;
+  public range = 160;
+  public power = 100;
 
   private minSpeed = 0.3;
   private maxSpeed = 3;
