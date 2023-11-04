@@ -29,6 +29,7 @@ interface Knot {
 }
 
 function calcPixel(): Vector2 {
+  console.log(screen);
   if (screen.orientation.type === 'landscape-primary' || screen.orientation.type === 'landscape-secondary') {
     return { x: 16 * 140, y: 9 * 140 };
   } else {
@@ -53,9 +54,10 @@ export class WebKnotService {
 
   public processing = new BehaviorSubject<boolean>(true);
   public readonly pixelS = signal<Vector2>(calcPixel());
+  public readonly canvasScaledPixelS = signal<Vector2>({ x: 0, y: 0 });
 
   private pointerPos: Vector2 = { x: 0, y: 0 };
-  private scaleFactor: Vector2 = { x: 1, y: 1 };
+  public scaleFactor: Vector2 = { x: 1, y: 1 };
   private knots: Knot[] = [];
   private particles: Particle[] = [];
   private expandTimer: any;
@@ -64,15 +66,15 @@ export class WebKnotService {
   private isPressing = false;
   private connectDist = 0;
   private isConnectHalf = false;
-  private readonly lineWidth = 6;
+  private readonly lineWidth = 4;
 
-  public range = 160;
-  public power = 100;
+  public range = 140;
+  public power = 200;
 
   private minSpeed = 0.3;
   private maxSpeed = 3;
   private damping = 0.005;
-  private connectDistTarget = 300;
+  private connectDistTarget = 360;
   private gravitation = 1;
 
   constructor() {
@@ -133,24 +135,14 @@ export class WebKnotService {
 
   private scaleCanvas(): void {
     if (this.canvasContainer && this.ctx) {
-      // No Aspect Ratio:
-      this.scaleFactor = {
-        x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
-        y: (1 / this.pixelS().y) * this.canvasContainer.clientHeight,
-      };
-      // With Aspect Ratio:
-      // if (this.pixelS().x < this.pixelS().y) {
-      //   this.scaleFactor = {
-      //     x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
-      //     y: (1 / (this.pixelS().x * 1.77777777777777777777777777777)) * this.canvasContainer.clientHeight,
-      //   };
-      // } else {
-      //   this.scaleFactor = {
-      //     x: (1 / this.pixelS().x) * this.canvasContainer.clientWidth,
-      //     y: (1 / this.pixelS().y) * this.canvasContainer.clientHeight,
-      //   };
-      // }
-
+      const scaleX = (1 / this.pixelS().x) * this.canvasContainer.clientWidth;
+      const scaleY = (1 / this.pixelS().y) * this.canvasContainer.clientHeight;
+      const aspectScale = Math.min(scaleX, scaleY);
+      this.scaleFactor = { x: aspectScale, y: aspectScale };
+      this.canvasScaledPixelS.set({
+        x: this.ctx.canvas.width * this.scaleFactor.x,
+        y: this.ctx.canvas.height * this.scaleFactor.y,
+      });
       this.ctx.scale(this.scaleFactor.x, this.scaleFactor.y);
     }
   }
@@ -167,7 +159,7 @@ export class WebKnotService {
   public createKnots(canvas: HTMLCanvasElement, amount: number): void {
     const newKnots: Knot[] = [];
     for (let index = 0; index < amount; index++) {
-      let randomSpezial = Math.floor(Math.random() * 3) + 2;
+      let randomSpezial = Math.floor(Math.random() * 30) + 2;
       if (randomSpezial > 6) {
         randomSpezial = 0;
       }
@@ -181,7 +173,7 @@ export class WebKnotService {
           y: (Math.random() - 0.5) * 2,
         }),
         speed: Math.random() * this.maxSpeed,
-        radius: 9 * this.lineWidth,
+        radius: 10 * this.lineWidth,
         lines: [],
         lineLength: 0,
         special: randomSpezial,
@@ -197,14 +189,14 @@ export class WebKnotService {
 
   private calcNextFrame(): void {
     if (this.ctx) {
-      this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+      this.ctx.clearRect(0, 0, innerWidth / this.scaleFactor.x, this.pixelS().y);
       this.calcNextParticle();
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
         if (this.isPressing) {
-          // if (index === 0) {
-          //   this.createParticles(this.pointerPos);
-          // }
+          if (index === 0) {
+            this.createParticles(this.pointerPos);
+          }
           if (this.calcActions(this.knots[index], index)) {
             continue;
           }
@@ -279,8 +271,8 @@ export class WebKnotService {
     for (const line of knot.lines) {
       if (line.distance > knot.radius) {
         const magnetic = this.vector2.sub(knot.pos, line.target);
-        knot.dir.x -= magnetic.x * 0.00007 * this.gravitation;
-        knot.dir.y -= magnetic.y * 0.00007 * this.gravitation;
+        knot.dir.x -= magnetic.x * 0.000015 * this.gravitation;
+        knot.dir.y -= magnetic.y * 0.000015 * this.gravitation;
         knot.dir.x = this.limit.transform(knot.dir.x, -Math.PI, Math.PI, false);
         knot.dir.y = this.limit.transform(knot.dir.y, -Math.PI, Math.PI, false);
       }
@@ -329,7 +321,8 @@ export class WebKnotService {
 
   private drawLines(ctx: CanvasRenderingContext2D, knot: Knot): void {
     for (const line of knot.lines) {
-      const strokeStyle = `rgba(256,256,256,${(this.connectDist - line.distance) / this.connectDist})`;
+      let opacity = (this.connectDist - line.distance) / this.connectDist;
+      const strokeStyle = `rgba(256,256,256,${this.limit.transform(opacity, 0, 0.6)})`;
       drawLine(ctx, knot.pos, line.target, strokeStyle, this.lineWidth);
     }
   }
