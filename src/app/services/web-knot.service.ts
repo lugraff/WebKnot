@@ -189,7 +189,7 @@ export class WebKnotService {
 
   private calcNextFrame(): void {
     if (this.ctx) {
-      this.ctx.clearRect(0, 0, innerWidth / this.scaleFactor.x, this.pixelS().y);
+      this.ctx.clearRect(0, 0, innerWidth / this.scaleFactor.x, innerHeight / this.scaleFactor.y);
       this.calcNextParticle();
       this.calcConnectionDist();
       for (let index = 0; index < this.knots.length; index++) {
