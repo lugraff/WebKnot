@@ -105,7 +105,7 @@ export class WebKnotService {
 
   private tryToCreateKnots(): void {
     if (this.canvas) {
-      this.createKnots(this.canvas, 32);
+      this.createKnots(this.canvas, 16);
     } else {
       setTimeout(() => {
         this.tryToCreateKnots();
