@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WebKnot</string>
+    <string name="title_activity_main">WebKnot</string>
+    <string name="package_name">io.lugraff.webknot</string>
+    <string name="custom_url_scheme">io.lugraff.webknot</string>
+</resources>
