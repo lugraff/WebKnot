@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, RendererFactory2, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
@@ -12,13 +12,12 @@ import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="overscroll-y-none custom-scrollbar w-[100dvw] h-[100dvh] bg-black text-subtle">
+    <div class="overscroll-y-none scrollbar-none w-[100dvw] h-[100dvh] bg-black text-subtle">
       <router-outlet></router-outlet>
     </div>
   `,
 })
 export class AppComponent {
-  private _renderer = inject(RendererFactory2).createRenderer(null, null);
   private _document = inject(DOCUMENT);
 
   constructor() {

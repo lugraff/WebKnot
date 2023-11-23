@@ -42,7 +42,7 @@ module.exports = {
       },
       animation: {
         parallaxLeft: "parallaxLeft 9s linear infinite",
-        fadeIn: "fadeIn 300ms linear 1",
+        fadeIn: "fadeIn 1200ms linear 1",
         zoomIn: "zoomIn 300ms ease 1",
       },
     },
