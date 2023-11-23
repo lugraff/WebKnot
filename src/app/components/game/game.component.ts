@@ -3,13 +3,7 @@ import { MachineInfoService } from 'src/app/services/machine-info.service';
 import { FullscreenService } from 'src/app/services/fullscreen.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  AfterViewInit,
-  ChangeDetectionStrategy,
-  Component,
-  HostListener,
-  inject,
-} from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { WebKnotService } from 'src/app/services/web-knot.service';
 import { IconComponent } from '../icon/icon.component';
 
@@ -36,8 +30,7 @@ export class GameComponent implements AfterViewInit {
     event.preventDefault();
   }
 
-  constructor() {
-  }
+  constructor() {}
 
   public ngAfterViewInit(): void {
     if (this.machine.isTouch) {

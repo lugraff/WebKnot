@@ -40,7 +40,7 @@ function calcPixel(): Vector2 {
 @Injectable({
   providedIn: 'root',
 })
-export class WebKnotService {
+export class WebKnotService{
   private vector2 = inject(Vector2Service);
   private ngZone = inject(NgZone);
   private destroy = inject(DestroyRef);
