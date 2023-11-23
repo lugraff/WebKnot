@@ -20,6 +20,7 @@ import { NavigationBar } from '@hugotomazi/capacitor-navigation-bar';
 export class AppComponent {
   private _renderer = inject(RendererFactory2).createRenderer(null, null);
   private _document = inject(DOCUMENT);
+
   constructor() {
     if (Capacitor.isNativePlatform()) {
       CapacitorApp.addListener('backButton', ({ canGoBack }) => {
@@ -36,9 +37,9 @@ export class AppComponent {
       if (element) {
         footerColor = getComputedStyle(element).backgroundColor;
       }
-      NavigationBar.setColor({ color: '#00000000', darkButtons: false });
+      NavigationBar.setColor({ color: '#000000', darkButtons: false });
       StatusBar.setStyle({ style: Style.Dark });
-      StatusBar.setBackgroundColor({ color: '#00000000' });
+      StatusBar.setBackgroundColor({ color: '#000000' });
     }
   }
 }
